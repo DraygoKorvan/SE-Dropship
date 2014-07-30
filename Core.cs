@@ -37,7 +37,19 @@ namespace SEDropship
 	[Serializable()]
 	public class SEDropshipSettings
 	{
+		private int m_slowDownDistance = 250;
+		private bool m_anyAsteroid = true;
+		public int slowDownDistance
+		{
+			get { return m_slowDownDistance; }
+			set { if (value > 250) m_slowDownDistance = value; else m_slowDownDistance = 250; }//safe minimum
+		}
 
+		public bool anyAsteroid
+		{
+			get { return m_anyAsteroid; }
+			set { m_anyAsteroid = value; }
+		}
 	}
 	public class SEDropship : PluginBase, IChatEventHandler
 	{
@@ -46,6 +58,7 @@ namespace SEDropship
 
 		private Thread main;
 		private SEDropshipSettings settings;
+		private Random m_gen;
 		bool m_running = true;
 
 		#endregion
@@ -60,8 +73,10 @@ namespace SEDropship
 		public override void Init()
 		{
 			//find all dropships and ignore.
+
 			settings = new SEDropshipSettings();
 			loadXML(false);
+			m_gen = new Random();
 			m_running = true;
 			main = new Thread(mainloop);
 			main.Start();
@@ -90,6 +105,16 @@ namespace SEDropship
 		
 		}
 
+		[Category("SE Dropship")]
+		[Description("Target Any Asteroid")]
+		[Browsable(true)]
+		[ReadOnly(false)]
+		public bool anyAsteroid
+		{
+			get { return settings.anyAsteroid; }
+			set { settings.anyAsteroid = value; }
+		}
+
 		#endregion
 
 		#region "Methods"
@@ -102,8 +127,7 @@ namespace SEDropship
 			{
 				try
 				{
-					//LogManager.APILog.WriteLineAndConsole("Checking!");
-					Thread.Sleep(10000);
+					Thread.Sleep(1000); //update the resolution to 1 second
 					List<CubeGridEntity> huntlist = SectorObjectManager.Instance.GetTypedInternalData<CubeGridEntity>();
 					foreach (CubeGridEntity grid in huntlist)
 					{
@@ -113,7 +137,6 @@ namespace SEDropship
 							continue;
 						}
 						ignore.Add(grid);
-						//LogManager.APILog.WriteLineAndConsole("New Grid Detected!");
 						if (ServerNetworkManager.Instance.GetConnectedPlayers().Count == 0) continue;
 						foreach (CubeBlockEntity cubein in grid.CubeBlocks)
 						{
@@ -122,7 +145,6 @@ namespace SEDropship
 								CockpitEntity cockpit = (CockpitEntity)cubein;
 								if (cockpit.CustomName == "Dropship")
 								{
-									//LogManager.APILog.WriteLineAndConsole("Found dropship launching drop proceedure!");
 									Thread dropstep = new Thread(() => doDrop(grid));
 									dropstep.Priority = ThreadPriority.BelowNormal;
 									dropstep.Start();
@@ -164,16 +186,24 @@ namespace SEDropship
 			List<VoxelMap> asteroids = SectorObjectManager.Instance.GetTypedInternalData<VoxelMap>();
 			//int asteroidcount = asteroids.Count();
 			VoxelMap asteroid = asteroids.First();
+			//pick a random asteroid if desired:
+			if(anyAsteroid)
+			{
+				VoxelMap roid = asteroids.ElementAt(m_gen.Next(asteroids.Count));
+				if (!roid.Filename.Contains("moon") ) //if it is a moon ignore.
+					asteroid = roid;
+			}
+
 			Vector3Wrapper target = asteroid.Position;
-			target = Vector3.Add(asteroid.Position, new Vector3Wrapper(50, 50, 50));
+			
+
+			target = Vector3.Add(asteroid.Position, new Vector3Wrapper(50, 50, 50));//temp, till we can query asteroid size.
 			Vector3Wrapper position = grid.Position;
 			Vector3Wrapper Vector3Intercept = (Vector3Wrapper)FindInterceptVector(position, 104.4F, target, new Vector3Wrapper(0, 0, 0));
 			grid.Forward = Vector3.Normalize(Vector3Intercept);
 			grid.LinearVelocity = Vector3Intercept;
-			float timeToCollision = Vector3.Distance(position, Vector3.Subtract(target, Vector3.Multiply(Vector3.Normalize(Vector3Intercept), 500))) / Vector3.Distance(new Vector3Wrapper(0, 0, 0), Vector3Intercept);
-			//LogManager.APILog.WriteLineAndConsole("Time to intercept: " + timeToCollision);
+			float timeToCollision = Vector3.Distance(position, Vector3.Subtract(target, Vector3.Multiply(Vector3.Normalize(Vector3Intercept), settings.slowDownDistance))) / Vector3.Distance(new Vector3Wrapper(0, 0, 0), Vector3Intercept);
 			Thread.Sleep((int)timeToCollision * 1000);
-			//LogManager.APILog.WriteLineAndConsole("Begin final approach at 5m/s");
 			grid.LinearVelocity = Vector3.Multiply(Vector3.Normalize(Vector3Intercept), 5.0F);
 		}
 		public void saveXML()
@@ -276,7 +306,7 @@ namespace SEDropship
 
 		public void OnChatSent(SEModAPIExtensions.API.ChatManager.ChatEvent obj)
 		{
-			return; //no handling for motd right now
+			return; 
 		}
 
 		public void OnPlayerJoined(ulong nothing, CharacterEntity character)
