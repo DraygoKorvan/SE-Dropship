@@ -75,14 +75,88 @@ namespace SEDropship
 			set { if(value >= 0) m_countdown = value; }
 		}
 	}
+	[Serializable()]
+	public class SeDropshipAsteroids
+	{
+		private VoxelMap m_asteroid;
+		private int m_sizex = 50;
+		private int m_sizey = 50;
+		private int m_sizez = 50;
+
+		public SeDropshipAsteroids(VoxelMap asteroid)
+		{
+			m_asteroid = asteroid;
+			calculateSize();
+		}
+		public SeDropshipAsteroids(VoxelMap asteroid, int x, int y, int z)
+		{
+			m_sizex = x;
+			m_sizey = y;
+			m_sizez = z;
+			m_asteroid = asteroid;
+		}
+
+		private void calculateSize()
+		{
+			if (m_asteroid.Filename.Contains("central"))
+			{
+				m_sizex = 250;
+				m_sizey = 250;
+				m_sizez = 250;
+			}
+			else
+			{
+				m_sizex = 50;
+				m_sizey = 50;
+				m_sizez = 50;
+			}
+		}
+
+		[Browsable(true)]
+		[ReadOnly(true)]
+		public string Location
+		{
+			get { return SandboxGameAssemblyWrapper.Instance.GetServerConfig().LoadWorld + "\\"; }
+
+		}
+		[Browsable(true)]
+		[ReadOnly(true)]
+		public VoxelMap asteroid
+		{
+			get { return m_asteroid; }
+
+		}
+		[Browsable(true)]
+		[ReadOnly(true)]
+		public int x
+		{
+			get { return m_sizex; }
+
+		}
+		[Browsable(true)]
+		[ReadOnly(true)]
+		public int y
+		{
+			get { return m_sizey; }
+
+		}
+		[Browsable(true)]
+		[ReadOnly(true)]
+		public int z
+		{
+			get { return m_sizez; }
+
+		}
+	}
 	public class SEDropship : PluginBase, IChatEventHandler
 	{
 		
 		#region "Attributes"
 
-		private Thread main;
+		private Thread m_main;
 		private SEDropshipSettings settings;
 		private Random m_gen;
+		private List<SeDropshipAsteroids> m_asteroids = new List<SeDropshipAsteroids>();
 		bool m_running = true;
 
 		#endregion
@@ -102,9 +176,10 @@ namespace SEDropship
 			loadXML(false);
 			m_gen = new Random();
 			m_running = true;
-			main = new Thread(mainloop);
-			main.Start();
-			main.Priority = ThreadPriority.BelowNormal;//lower priority to make room for other tasks if needed.
+			//build asteroid list
+			m_main = new Thread(mainloop);
+			m_main.Start();
+			m_main.Priority = ThreadPriority.BelowNormal;//lower priority to make room for other tasks if needed.
 			
 			Console.WriteLine("SE Dropship Plugin '" + Id.ToString() + "' initialized!");	
 		}
@@ -195,6 +270,16 @@ namespace SEDropship
 		private void mainloop()
 		{
 			Thread.Sleep(resolution);
+			m_asteroids.Clear();
+			List<VoxelMap> asteroids = SectorObjectManager.Instance.GetTypedInternalData<VoxelMap>();
+			foreach (VoxelMap voxelmap in asteroids)
+			{
+				if (!voxelmap.Filename.Contains("moon"))
+				{
+					//ignore moons				
+					m_asteroids.Add(new SeDropshipAsteroids(voxelmap));
+				}
+			}
 			List<CubeGridEntity> ignore = SectorObjectManager.Instance.GetTypedInternalData<CubeGridEntity>();
 			while(m_running)
 			{
@@ -268,16 +353,19 @@ namespace SEDropship
 			//find target
 			List<VoxelMap> asteroids = SectorObjectManager.Instance.GetTypedInternalData<VoxelMap>();
 			//int asteroidcount = asteroids.Count();
-			VoxelMap asteroid = asteroids.First();
+			if (m_asteroids.Count == 0)
+			{
+				LogManager.APILog.WriteLineAndConsole("No asteroids, aborting drop");
+				return;
+			}
+			SeDropshipAsteroids asteroid = m_asteroids.First();
 			//pick a random asteroid if desired: going to change this up later
 			if(anyAsteroid)
 			{
-				VoxelMap roid = asteroids.ElementAt(m_gen.Next(asteroids.Count));
-				if (!roid.Filename.Contains("moon") ) //if it is a moon ignore.
-					asteroid = roid;
+				asteroid = m_asteroids.ElementAt(m_gen.Next(m_asteroids.Count));
 			}
 
-			Vector3Wrapper target = asteroid.Position;
+			Vector3Wrapper target = asteroid.asteroid.Position;
 			List<ulong> steamlist = ServerNetworkManager.Instance.GetConnectedPlayers();
 			ulong steamid = 0;
 			foreach( ulong steam_id in steamlist)
@@ -314,14 +402,20 @@ namespace SEDropship
 				ChatManager.Instance.SendPrivateChatMessage(steamid, "Insertion Sequence aborted.");
 				return;
 			}
-			target = Vector3.Add(asteroid.Position, new Vector3Wrapper(50, 50, 50));//temp, till we can query asteroid size.
+			Vector3 adjustVector = new Vector3Wrapper(asteroid.x, asteroid.y, asteroid.z);
+			target = Vector3.Add(asteroid.asteroid.Position, adjustVector);//temp, till we can query asteroid size.
+			float adjust = Vector3.Distance(new Vector3Wrapper(0,0,0), adjustVector);
 			Vector3Wrapper position = grid.Position;
 			Vector3Wrapper Vector3Intercept = (Vector3Wrapper)FindInterceptVector(position, startSpeed, target, new Vector3Wrapper(0, 0, 0));
 			grid.Forward = Vector3.Normalize(Vector3Intercept);
 			grid.LinearVelocity = Vector3Intercept;
-			float timeToCollision = Vector3.Distance(position, Vector3.Subtract(target, Vector3.Multiply(Vector3.Normalize(Vector3Intercept), slowDownDistance))) / Vector3.Distance(new Vector3Wrapper(0, 0, 0), Vector3Intercept);
-			Thread.Sleep((int)timeToCollision * 1000);
+			float timeToSlow = Vector3.Distance(position, Vector3.Subtract(target, Vector3.Multiply(Vector3.Normalize(Vector3Intercept), slowDownDistance+adjust))) / Vector3.Distance(new Vector3Wrapper(0, 0, 0), Vector3Intercept);
+			float timeToCollision = Vector3.Distance(Vector3.Subtract(target, Vector3.Multiply(Vector3.Normalize(Vector3Intercept), slowDownDistance+adjust)), Vector3.Subtract(target, Vector3.Multiply(Vector3.Normalize(Vector3Intercept), 10))) / slowSpeed;
+			Thread.Sleep((int)timeToSlow * 1000);
 			grid.LinearVelocity = Vector3.Multiply(Vector3.Normalize(Vector3Intercept), slowSpeed);
+			Thread.Sleep((int)timeToCollision * 1000);
+			grid.LinearVelocity = new Vector3Wrapper(0, 0, 0);
+			
 		}
 		public void saveXML()
 		{
@@ -353,10 +447,10 @@ namespace SEDropship
 			}
 			try
 			{
-				if (File.Exists(DefaultLocation + "SEMotd-Config.xml"))
+				if (File.Exists(DefaultLocation + "SE-Dropship-Settings.xml"))
 				{
 					XmlSerializer x = new XmlSerializer(typeof(SEDropshipSettings));
-					TextReader reader = new StreamReader(DefaultLocation + "SEMotd-Config.xml");
+					TextReader reader = new StreamReader(DefaultLocation + "SE-Dropship-Settings.xml");
 					SEDropshipSettings obj = (SEDropshipSettings)x.Deserialize(reader);
 
 					reader.Close();
@@ -379,6 +473,7 @@ namespace SEDropship
 
 		public override void Shutdown()
 		{
+			m_running = false;
 			saveXML();
 			return;
 		}
@@ -426,14 +521,7 @@ namespace SEDropship
 			return; 
 		}
 
-		public void OnPlayerJoined(ulong nothing, CharacterEntity character)
-		{
-			return;
-		}
-		public void OnPlayerLeft(ulong nothing, CharacterEntity character)
-		{
-			return;
-		}
+
 		#endregion
 
 
