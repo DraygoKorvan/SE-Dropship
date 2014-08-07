@@ -271,14 +271,18 @@ namespace SEDropship
 		{
 			Thread.Sleep(resolution);
 			m_asteroids.Clear();
-			List<VoxelMap> asteroids = SectorObjectManager.Instance.GetTypedInternalData<VoxelMap>();
-			foreach (VoxelMap voxelmap in asteroids)
+			while (m_asteroids.Count == 0 && m_running)
 			{
-				if (!voxelmap.Filename.Contains("moon"))
+				List<VoxelMap> asteroids = SectorObjectManager.Instance.GetTypedInternalData<VoxelMap>();
+				foreach (VoxelMap voxelmap in asteroids)
 				{
-					//ignore moons				
-					m_asteroids.Add(new SeDropshipAsteroids(voxelmap));
+					if (!voxelmap.Filename.Contains("moon"))
+					{
+						//ignore moons				
+						m_asteroids.Add(new SeDropshipAsteroids(voxelmap));
+					}
 				}
+				Thread.Sleep(resolution);
 			}
 			List<CubeGridEntity> ignore = SectorObjectManager.Instance.GetTypedInternalData<CubeGridEntity>();
 			while(m_running)
@@ -411,9 +415,13 @@ namespace SEDropship
 			grid.LinearVelocity = Vector3Intercept;
 			float timeToSlow = Vector3.Distance(position, Vector3.Subtract(target, Vector3.Multiply(Vector3.Normalize(Vector3Intercept), slowDownDistance+adjust))) / Vector3.Distance(new Vector3Wrapper(0, 0, 0), Vector3Intercept);
 			float timeToCollision = Vector3.Distance(Vector3.Subtract(target, Vector3.Multiply(Vector3.Normalize(Vector3Intercept), slowDownDistance+adjust)), Vector3.Subtract(target, Vector3.Multiply(Vector3.Normalize(Vector3Intercept), 10))) / slowSpeed;
+			ChatManager.Instance.SendPrivateChatMessage(steamid, "Estimated travel time: " + ((int)timeToSlow / 60).ToString() + " minutes and " + ((int)timeToSlow % 60).ToString() + " seconds. Enjoy your trip!");
 			Thread.Sleep((int)timeToSlow * 1000);
+			if(seat.Pilot != null)
+				ChatManager.Instance.SendPrivateChatMessage(steamid, "Welcome to your destination, pod will attempt to land. If navigation calculations were off it will automatically stop the pod in " + ((int)timeToCollision).ToString() + " seconds. Have a nice day!");
 			grid.LinearVelocity = Vector3.Multiply(Vector3.Normalize(Vector3Intercept), slowSpeed);
 			Thread.Sleep((int)timeToCollision * 1000);
+			
 			grid.LinearVelocity = new Vector3Wrapper(0, 0, 0);
 			
 		}
