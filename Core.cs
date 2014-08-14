@@ -43,10 +43,12 @@ namespace SEDropship
 		private float m_slowSpeed = 5.0F;
 		private float m_startSpeed = 104.4F;
 		private int m_countdown = 10;
+		private bool m_deleteIfAbort = false;
+
 		public int slowDownDistance
 		{
 			get { return m_slowDownDistance; }
-			set { if (value > 250) m_slowDownDistance = value; else m_slowDownDistance = 250; }//safe minimum
+			set { if (value > 128) m_slowDownDistance = value; else m_slowDownDistance = 128; }//safe minimum
 		}
 
 		public bool anyAsteroid
@@ -73,6 +75,11 @@ namespace SEDropship
 		{
 			get { return m_countdown; }
 			set { if(value >= 0) m_countdown = value; }
+		}
+		public bool deleteIfAbort
+		{
+			get { return m_deleteIfAbort; }
+			set { m_deleteIfAbort = value; }
 		}
 	}
 	[Serializable()]
@@ -261,7 +268,16 @@ namespace SEDropship
 		{
 			get { return settings.countdown; }
 			set { settings.countdown = value; }
-		}		
+		}
+		[Category("SE Dropship")]
+		[Description("Delete dropship if aborted")]
+		[Browsable(true)]
+		[ReadOnly(false)]
+		public bool deleteIfAbort
+		{
+			get { return settings.deleteIfAbort; }
+			set { settings.deleteIfAbort = value; }
+		}
 
 		#endregion
 
@@ -355,8 +371,6 @@ namespace SEDropship
 		public void doDrop(CubeGridEntity grid, CockpitEntity seat, long Owner)
 		{
 			//find target
-			List<VoxelMap> asteroids = SectorObjectManager.Instance.GetTypedInternalData<VoxelMap>();
-			//int asteroidcount = asteroids.Count();
 			if (m_asteroids.Count == 0)
 			{
 				LogManager.APILog.WriteLineAndConsole("No asteroids, aborting drop");
@@ -403,27 +417,63 @@ namespace SEDropship
 			}
 			else
 			{
-				ChatManager.Instance.SendPrivateChatMessage(steamid, "Insertion Sequence aborted.");
+				ChatManager.Instance.SendPrivateChatMessage(steamid, "Insertion Sequence aborted." + ( deleteIfAbort ? " Dropship self destructing." : ""));
+				if (deleteIfAbort) 
+					grid.Dispose();
+
 				return;
 			}
 			Vector3 adjustVector = new Vector3Wrapper(asteroid.x, asteroid.y, asteroid.z);
 			target = Vector3.Add(asteroid.asteroid.Position, adjustVector);//temp, till we can query asteroid size.
-			float adjust = Vector3.Distance(new Vector3Wrapper(0,0,0), adjustVector);
+			//float adjust = Vector3.Distance(new Vector3Wrapper(0,0,0), adjustVector);
 			Vector3Wrapper position = grid.Position;
 			Vector3Wrapper Vector3Intercept = (Vector3Wrapper)FindInterceptVector(position, startSpeed, target, new Vector3Wrapper(0, 0, 0));
 			grid.Forward = Vector3.Normalize(Vector3Intercept);
 			grid.LinearVelocity = Vector3Intercept;
-			float timeToSlow = Vector3.Distance(position, Vector3.Subtract(target, Vector3.Multiply(Vector3.Normalize(Vector3Intercept), slowDownDistance+adjust))) / Vector3.Distance(new Vector3Wrapper(0, 0, 0), Vector3Intercept);
-			float timeToCollision = Vector3.Distance(Vector3.Subtract(target, Vector3.Multiply(Vector3.Normalize(Vector3Intercept), slowDownDistance+adjust)), Vector3.Subtract(target, Vector3.Multiply(Vector3.Normalize(Vector3Intercept), 10))) / slowSpeed;
+
+			float distance = Vector3.Distance(position,target) - slowDownDistance;
+			//LogManager.APILog.WriteLineAndConsole("Total Distance to target: " + distance.ToString());
+			float timeToSlow =  distance / startSpeed;
+			float timeToCollision = Vector3.Distance(Vector3.Subtract(target, Vector3.Multiply(Vector3.Normalize(Vector3Intercept), slowDownDistance)), target) / slowSpeed;
+
 			ChatManager.Instance.SendPrivateChatMessage(steamid, "Estimated travel time: " + ((int)timeToSlow / 60).ToString() + " minutes and " + ((int)timeToSlow % 60).ToString() + " seconds. Enjoy your trip!");
-			Thread.Sleep((int)timeToSlow * 1000);
-			if(seat.Pilot != null)
-				ChatManager.Instance.SendPrivateChatMessage(steamid, "Welcome to your destination, pod will attempt to land. If navigation calculations were off it will automatically stop the pod in " + ((int)timeToCollision).ToString() + " seconds. Have a nice day!");
-			grid.LinearVelocity = Vector3.Multiply(Vector3.Normalize(Vector3Intercept), slowSpeed);
-			Thread.Sleep((int)timeToCollision * 1000);
-			
-			grid.LinearVelocity = new Vector3Wrapper(0, 0, 0);
-			
+			if (timeToSlow > 1)
+				Thread.Sleep(1000);
+			if ( Vector3.Distance(new Vector3Wrapper(0,0,0), grid.LinearVelocity) == 0)
+			{
+				timeToSlow += 1;
+				//second attempt
+				grid.Forward = Vector3.Normalize(Vector3Intercept);
+				grid.LinearVelocity = Vector3Intercept;
+			}
+			//Thread.Sleep((int)((timeToSlow-1) * 1000));
+			int breakat = (int)timeToSlow*8;
+			int breakcounter = 0;
+			//calculate distance as we travel we can do these checks 4 times a second
+			while (slowDownDistance < Vector3.Distance(grid.Position, target) - slowDownDistance)
+			{
+				//LogManager.APILog.WriteLineAndConsole("Distance to target: " + (Vector3.Distance(grid.Position, target) - slowDownDistance).ToString());
+				breakcounter++;
+				if (breakcounter % 80 * 30 == 0)
+				{
+					if(seat.Pilot != null)
+						ChatManager.Instance.SendPrivateChatMessage(steamid, "Distance remaining: " + (Vector3.Distance(grid.Position, target) - slowDownDistance).ToString() + " meters.");
+				}
+				if(breakcounter > breakat) break;
+				Thread.Sleep(250);
+				if (grid == null) return;
+			}
+			if (seat.Pilot != null)
+			{
+				ChatManager.Instance.SendPrivateChatMessage(steamid, "Welcome to your destination, pod will attempt to land. If navigation calculations were off it will automatically stop the pod in " + ((int)timeToCollision*2).ToString() + " seconds. Have a nice day!");
+				grid.LinearVelocity = Vector3.Multiply(Vector3.Normalize(Vector3Intercept), slowSpeed);
+				Thread.Sleep((int)timeToCollision*2 * 1000);
+
+				grid.LinearVelocity = new Vector3Wrapper(0, 0, 0);
+				grid.AngularVelocity = new Vector3Wrapper(0, 0, 0);
+			}
+			else
+				grid.Dispose();//clear it
 		}
 		public void saveXML()
 		{
@@ -444,7 +494,7 @@ namespace SEDropship
 					XmlSerializer x = new XmlSerializer(typeof(SEDropshipSettings));
 					TextReader reader = new StreamReader(Location + "SE-Dropship-Settings.xml");
 					SEDropshipSettings obj = (SEDropshipSettings)x.Deserialize(reader);
-	
+					settings = obj;
 					reader.Close();
 					return;
 				}
@@ -460,7 +510,7 @@ namespace SEDropship
 					XmlSerializer x = new XmlSerializer(typeof(SEDropshipSettings));
 					TextReader reader = new StreamReader(DefaultLocation + "SE-Dropship-Settings.xml");
 					SEDropshipSettings obj = (SEDropshipSettings)x.Deserialize(reader);
-
+					settings = obj;
 					reader.Close();
 				}
 			}
