@@ -501,7 +501,9 @@ namespace SEDropship
 			}
 			catch (Exception ex)
 			{
-				LogManager.APILog.WriteLineAndConsole("Could not load configuration: " + ex.ToString());
+				try { LogManager.APILog.WriteLineAndConsole("Could not load configuration: " + ex.ToString()); }
+				catch { Console.WriteLine("Could not load and write to log: " + ex.ToString()); }
+				
 			}
 			try
 			{
@@ -516,7 +518,8 @@ namespace SEDropship
 			}
 			catch (Exception ex)
 			{
-				LogManager.APILog.WriteLineAndConsole("Could not load configuration: " + ex.ToString());
+				try { LogManager.APILog.WriteLineAndConsole("Could not load configuration: " + ex.ToString()); }
+				catch { Console.WriteLine("Could not load and write to log: " + ex.ToString()); }
 			}
 
 		}
