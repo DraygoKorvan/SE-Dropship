@@ -44,6 +44,7 @@ namespace SEDropship
 		private float m_startSpeed = 104.4F;
 		private int m_countdown = 10;
 		private bool m_deleteIfAbort = false;
+		private int m_teleportDistance = 10000;
 
 		public int slowDownDistance
 		{
@@ -80,6 +81,11 @@ namespace SEDropship
 		{
 			get { return m_deleteIfAbort; }
 			set { m_deleteIfAbort = value; }
+		}
+		public int teleportDistance
+		{
+			get { return m_teleportDistance; }
+			set { if (value >= 1000) m_teleportDistance = value; }
 		}
 	}
 	[Serializable()]
@@ -278,6 +284,15 @@ namespace SEDropship
 			get { return settings.deleteIfAbort; }
 			set { settings.deleteIfAbort = value; }
 		}
+		[Category("SE Dropship")]
+		[Description("Distance from target to teleport the pod to.")]
+		[Browsable(true)]
+		[ReadOnly(false)]
+		public int teleportDistance
+		{
+			get { return settings.teleportDistance; }
+			set { settings.teleportDistance = value; }
+		}
 
 		#endregion
 
@@ -398,8 +413,8 @@ namespace SEDropship
 			}
 			ChatManager.Instance.SendPrivateChatMessage(steamid, "Dropship booting up, please stay in your seat for insertion.");
 			Thread.Sleep(1000);
-			ChatManager.Instance.SendPrivateChatMessage(steamid, "If you exited your ship please return to the passenger seat before the countdown begins.");
-			Thread.Sleep(5000);
+			ChatManager.Instance.SendPrivateChatMessage(steamid, "If you exited your ship please return to the passenger seat before the countdown finishes.");
+			Thread.Sleep(2000);
 			ChatManager.Instance.SendPrivateChatMessage(steamid, "Dropship Sequence Initiated, please remain seated. Exiting your seat will abort automatic insertion.");
 			Thread.Sleep(1000);
 			ChatManager.Instance.SendPrivateChatMessage(steamid, "Beginning Insertion Sequence.");
@@ -407,8 +422,6 @@ namespace SEDropship
 			for ( int count = countdown; count > 0; count--)
 			{
 				ChatManager.Instance.SendPrivateChatMessage(steamid, count.ToString() + ".");
-				if (seat.Pilot == null)
-					break;
 				Thread.Sleep(1000);
 			}
 			if(seat.Pilot != null)
@@ -428,10 +441,16 @@ namespace SEDropship
 			//float adjust = Vector3.Distance(new Vector3Wrapper(0,0,0), adjustVector);
 			Vector3Wrapper position = grid.Position;
 			Vector3Wrapper Vector3Intercept = (Vector3Wrapper)FindInterceptVector(position, startSpeed, target, new Vector3Wrapper(0, 0, 0));
-			grid.Forward = Vector3.Normalize(Vector3Intercept);
-			grid.LinearVelocity = Vector3Intercept;
 
 			float distance = Vector3.Distance(position,target) - slowDownDistance;
+			if(distance > teleportDistance)
+			{
+				position = Vector3.Add(target, Vector3.Multiply(Vector3.Negate(Vector3.Normalize(Vector3Intercept)), teleportDistance));
+				grid.Position = position;
+				distance = Vector3.Distance(position, target) - slowDownDistance;
+			}
+			grid.Forward = Vector3.Normalize(Vector3Intercept);
+			grid.LinearVelocity = Vector3Intercept;
 			//LogManager.APILog.WriteLineAndConsole("Total Distance to target: " + distance.ToString());
 			float timeToSlow =  distance / startSpeed;
 			float timeToCollision = Vector3.Distance(Vector3.Subtract(target, Vector3.Multiply(Vector3.Normalize(Vector3Intercept), slowDownDistance)), target) / slowSpeed;
