@@ -161,7 +161,7 @@ namespace SEDropship
 
 		}
 	}
-	public class SEDropship : PluginBase, IChatEventHandler
+	public class SEDropship : PluginBase
 	{
 		
 		#region "Attributes"
@@ -193,7 +193,27 @@ namespace SEDropship
 			m_main = new Thread(mainloop);
 			m_main.Start();
 			m_main.Priority = ThreadPriority.BelowNormal;//lower priority to make room for other tasks if needed.
-			
+
+			//Register Chat Commands
+			ChatManager.ChatCommand command = new ChatManager.ChatCommand();
+			command.callback = saveXML;
+			command.command = "se-dropship-save";
+			command.requiresAdmin = true;
+			ChatManager.Instance.RegisterChatCommand(command);
+
+			command = new ChatManager.ChatCommand();
+			command.callback = loadXML;
+			command.command = "se-dropship-load";
+			command.requiresAdmin = true;
+			ChatManager.Instance.RegisterChatCommand(command);
+
+			command = new ChatManager.ChatCommand();
+			command.callback = loadDefaults;
+			command.command = "se-dropship-loaddefaults";
+			command.requiresAdmin = true;
+			ChatManager.Instance.RegisterChatCommand(command);
+			//End Register Chat commands			
+
 			Console.WriteLine("SE Dropship Plugin '" + Id.ToString() + "' initialized!");	
 		}
 
@@ -298,6 +318,7 @@ namespace SEDropship
 
 		#region "Methods"
 
+		#region "Core"
 		private void mainloop()
 		{
 			Thread.Sleep(resolution);
@@ -404,7 +425,6 @@ namespace SEDropship
 			foreach( ulong steam_id in steamlist)
 			{
 				List<long> playerids =  PlayerMap.Instance.GetPlayerIdsFromSteamId(steam_id);
-				//PlayerMap.Instance.get
 				foreach (long playerid in playerids)
 				{
 					if(playerid == Owner)
@@ -465,13 +485,11 @@ namespace SEDropship
 				grid.Forward = Vector3.Normalize(Vector3Intercept);
 				grid.LinearVelocity = Vector3Intercept;
 			}
-			//Thread.Sleep((int)((timeToSlow-1) * 1000));
 			int breakat = (int)timeToSlow*8;
 			int breakcounter = 0;
 			//calculate distance as we travel we can do these checks 4 times a second
 			while (slowDownDistance < Vector3.Distance(grid.Position, target) - slowDownDistance)
 			{
-				//LogManager.APILog.WriteLineAndConsole("Distance to target: " + (Vector3.Distance(grid.Position, target) - slowDownDistance).ToString());
 				breakcounter++;
 				if (breakcounter % 80 * 30 == 0)
 				{
@@ -543,7 +561,7 @@ namespace SEDropship
 
 		}
 
-
+		#endregion
 		#region "EventHandlers"
 
 		public override void Update()
@@ -558,54 +576,51 @@ namespace SEDropship
 			return;
 		}
 
-		public void OnChatReceived(SEModAPIExtensions.API.ChatManager.ChatEvent obj)
-		{
-
-			if (obj.sourceUserId == 0)
-				return;
-			bool isadmin = SandboxGameAssemblyWrapper.Instance.IsUserAdmin(obj.sourceUserId);
-
-			if( obj.message[0] == '/' )
-			{
-
-				string[] words = obj.message.Split(' ');
-				//string rem;
-				//proccess
-				
-
-				if (isadmin && words[0] == "/se-dropship-save")
-				{
-
-					saveXML();
-					ChatManager.Instance.SendPrivateChatMessage(obj.sourceUserId, "Se-dropship Configuration Saved.");
-					return;
-				}
-				if (isadmin && words[0] == "/se-dropship-load")
-				{
-					loadXML(false);
-					ChatManager.Instance.SendPrivateChatMessage(obj.sourceUserId, "Se-dropship Configuration Loaded.");
-					return;
-				}
-				if (isadmin && words[0] == "/se-dropship-loaddefault")
-				{
-					loadXML(true);
-					ChatManager.Instance.SendPrivateChatMessage(obj.sourceUserId, "Se-dropship Configuration Defaults Loaded.");
-					return;
-				}
-			}
-			return; 
-		}
-
-		public void OnChatSent(SEModAPIExtensions.API.ChatManager.ChatEvent obj)
-		{
-			return; 
-		}
-
-
 		#endregion
 
+		#region "Chat Callbacks"
 
+		public void saveXML(ChatManager.ChatEvent _event)
+		{
+			saveXML();
+			try
+			{
+				if (_event.remoteUserId > 0)
+					ChatManager.Instance.SendPrivateChatMessage(_event.remoteUserId, "Dropship configuration saved.");
+			}
+			catch
+			{
+				//donothing
+			}
 
+		}
+		public void loadXML(ChatManager.ChatEvent _event)
+		{
+			loadXML(false);
+			try
+			{
+				if (_event.remoteUserId > 0)
+					ChatManager.Instance.SendPrivateChatMessage(_event.remoteUserId, "Dropship configuration loaded.");
+			}
+			catch
+			{
+				//donothing
+			}
+		}
+		public void loadDefaults(ChatManager.ChatEvent _event)
+		{
+			loadXML(true);
+			try
+			{
+				if (_event.remoteUserId > 0)
+					ChatManager.Instance.SendPrivateChatMessage(_event.remoteUserId, "Dropship configuration defaults loaded.");
+			}
+			catch
+			{
+				//donothing
+			}
+		}
+		#endregion
 		#endregion
 	}
 }
