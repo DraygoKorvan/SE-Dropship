@@ -12,6 +12,7 @@ using System.Xml.Serialization;
 
 using Sandbox.Common.ObjectBuilders;
 using Sandbox.Common.ObjectBuilders.VRageData;
+using Sandbox.Definitions;
 
 using SEModAPIExtensions.API.Plugin;
 using SEModAPIExtensions.API.Plugin.Events;
@@ -29,139 +30,12 @@ using SEModAPI.API;
 
 using VRageMath;
 using VRage.Common.Utils;
-
+using VRage.Collections;
 
 
 namespace SEDropship
 {
-	[Serializable()]
-	public class SEDropshipSettings
-	{
-		private int m_slowDownDistance = 250;
-		private bool m_anyAsteroid = true;
-		private int m_resolution = 1000;
-		private float m_slowSpeed = 5.0F;
-		private float m_startSpeed = 104.4F;
-		private int m_countdown = 10;
-		private bool m_deleteIfAbort = false;
-		private int m_teleportDistance = 10000;
-
-		public int slowDownDistance
-		{
-			get { return m_slowDownDistance; }
-			set { if (value > 128) m_slowDownDistance = value; else m_slowDownDistance = 128; }//safe minimum
-		}
-
-		public bool anyAsteroid
-		{
-			get { return m_anyAsteroid; }
-			set { m_anyAsteroid = value; }
-		}
-		public int resolution
-		{
-			get { return m_resolution; }
-			set { if (value > 0 ) m_resolution = value; }
-		}
-		public float slowSpeed
-		{
-			get { return m_slowSpeed; }
-			set { if (value >= 0F) m_slowSpeed = value; }
-		}
-		public float startSpeed
-		{
-			get { return m_startSpeed; }
-			set { if(value >= 0F) m_startSpeed = value; }
-		}
-		public int countdown
-		{
-			get { return m_countdown; }
-			set { if(value >= 0) m_countdown = value; }
-		}
-		public bool deleteIfAbort
-		{
-			get { return m_deleteIfAbort; }
-			set { m_deleteIfAbort = value; }
-		}
-		public int teleportDistance
-		{
-			get { return m_teleportDistance; }
-			set { if (value >= 1000) m_teleportDistance = value; }
-		}
-	}
-	[Serializable()]
-	public class SeDropshipAsteroids
-	{
-		private VoxelMap m_asteroid;
-		private int m_sizex = 50;
-		private int m_sizey = 50;
-		private int m_sizez = 50;
-
-		public SeDropshipAsteroids(VoxelMap asteroid)
-		{
-			m_asteroid = asteroid;
-			calculateSize();
-		}
-		public SeDropshipAsteroids(VoxelMap asteroid, int x, int y, int z)
-		{
-			m_sizex = x;
-			m_sizey = y;
-			m_sizez = z;
-			m_asteroid = asteroid;
-		}
-
-		private void calculateSize()
-		{
-			if (m_asteroid.Filename.Contains("central"))
-			{
-				m_sizex = 250;
-				m_sizey = 250;
-				m_sizez = 250;
-			}
-			else
-			{
-				m_sizex = 50;
-				m_sizey = 50;
-				m_sizez = 50;
-			}
-		}
-
-		[Browsable(true)]
-		[ReadOnly(true)]
-		public string Location
-		{
-			get { return SandboxGameAssemblyWrapper.Instance.GetServerConfig().LoadWorld + "\\"; }
-
-		}
-		[Browsable(true)]
-		[ReadOnly(true)]
-		public VoxelMap asteroid
-		{
-			get { return m_asteroid; }
-
-		}
-		[Browsable(true)]
-		[ReadOnly(true)]
-		public int x
-		{
-			get { return m_sizex; }
-
-		}
-		[Browsable(true)]
-		[ReadOnly(true)]
-		public int y
-		{
-			get { return m_sizey; }
-
-		}
-		[Browsable(true)]
-		[ReadOnly(true)]
-		public int z
-		{
-			get { return m_sizez; }
-
-		}
-	}
-	public class SEDropship : PluginBase
+	public class SEDropship : PluginBase, ICubeGridHandler
 	{
 		
 		#region "Attributes"
@@ -169,8 +43,12 @@ namespace SEDropship
 		private Thread m_main;
 		private SEDropshipSettings settings;
 		private Random m_gen;
-		private List<SeDropshipAsteroids> m_asteroids = new List<SeDropshipAsteroids>();
+		private AsteroidCollection m_asteroids = new AsteroidCollection();
 		bool m_running = true;
+		bool m_loading = true;
+		List<long> m_ignore = new List<long>();
+		private bool m_debugging = false;
+		private int m_debuglevel = 1;
 
 		#endregion
 
@@ -189,7 +67,9 @@ namespace SEDropship
 			loadXML(false);
 			m_gen = new Random();
 			m_running = true;
+			m_loading = true;
 			//build asteroid list
+			m_ignore.Clear();
 			m_main = new Thread(mainloop);
 			m_main.Start();
 			m_main.Priority = ThreadPriority.BelowNormal;//lower priority to make room for other tasks if needed.
@@ -237,7 +117,7 @@ namespace SEDropship
 		
 		}
 
-		[Category("SE Dropship")]
+		[Category("Asteroid")]
 		[Description("Target Any Asteroid")]
 		[Browsable(true)]
 		[ReadOnly(false)]
@@ -246,7 +126,33 @@ namespace SEDropship
 			get { return settings.anyAsteroid; }
 			set { settings.anyAsteroid = value; }
 		}
-
+		[Category("Asteroid")]
+		[Description("Plugin will ignore asteroid if this keyword exists in the asteroid filename.")]
+		[Browsable(true)]
+		[ReadOnly(false)]
+		public string ignoreKeyword
+		{
+			get { return settings.ignoreKeyword; }
+			set { settings.ignoreKeyword = value; }
+		}
+		[Category("Asteroid")]
+		[Description("Requires target asteroid to have Stone, Iron, Nickel, Cobalt, Silver, Gold, Uranium, Platinum, and Silicon.")]
+		[Browsable(true)]
+		[ReadOnly(false)]
+		public bool requireAllVitalMats
+		{
+			get { return settings.requireVital; }
+			set { settings.requireVital = value; }
+		}
+		[Category("Asteroid")]
+		[Description("Requires target asteroid to have Magnesium.")]
+		[Browsable(true)]
+		[ReadOnly(false)]
+		public bool requireMagnesium
+		{
+			get { return settings.requireMagnesium; }
+			set { settings.requireMagnesium = value; }
+		}
 		[Category("SE Dropship")]
 		[Description("Resolution settings, 1 second = 1000")]
 		[Browsable(true)]
@@ -313,6 +219,49 @@ namespace SEDropship
 			get { return settings.teleportDistance; }
 			set { settings.teleportDistance = value; }
 		}
+		[Category("Debug")]
+		[Description("List of allowed asteroids")]
+		[Browsable(true)]
+		[ReadOnly(true)]
+		[TypeConverter(typeof(AsteroidsConverter))]
+		public AsteroidCollection AsteroidList
+		{
+			get { return m_asteroids; }
+		}
+		[Category("Debug")]
+		[Description("Loading")]
+		[Browsable(true)]
+		[ReadOnly(true)]
+		public bool Loading
+		{
+			get { return m_loading; }
+		}
+		[Category("Debug")]
+		[Description("is debugging")]
+		[Browsable(true)]
+		[ReadOnly(true)]
+		public bool isdebugging
+		{
+			get { return m_debugging || SandboxGameAssemblyWrapper.IsDebugging; }
+		}
+		[Category("Debug")]
+		[Description("Debug Output")]
+		[Browsable(true)]
+		[ReadOnly(false)]
+		public bool debugging
+		{
+			get { return m_debugging; }
+			set { m_debugging = value; }
+		}
+		[Category("Debug")]
+		[Description("Debug Level")]
+		[Browsable(true)]
+		[ReadOnly(false)]
+		public int debugLevel
+		{
+			get { return m_debuglevel; }
+			set { m_debuglevel = value; }
+		}
 
 		#endregion
 
@@ -321,68 +270,100 @@ namespace SEDropship
 		#region "Core"
 		private void mainloop()
 		{
-			Thread.Sleep(resolution);
+			//Thread.Sleep(resolution);
 			m_asteroids.Clear();
-			while (m_asteroids.Count == 0 && m_running)
+			List<VoxelMap> asteroids = SectorObjectManager.Instance.GetTypedInternalData<VoxelMap>();
+			do
 			{
-				List<VoxelMap> asteroids = SectorObjectManager.Instance.GetTypedInternalData<VoxelMap>();
-				foreach (VoxelMap voxelmap in asteroids)
+				Thread.Sleep(1000);
+				asteroids = SectorObjectManager.Instance.GetTypedInternalData<VoxelMap>();
+
+			}
+			while (asteroids.Count == 0);
+
+			foreach (VoxelMap voxelmap in asteroids)
+			{
+				if (ignoreKeyword == null)
+					ignoreKeyword = "";
+				if (!voxelmap.Filename.Contains("moon") && !voxelmap.Filename.Contains("ignore") &&  (ignoreKeyword == "" || !voxelmap.Filename.Contains(ignoreKeyword)) )
 				{
-					if (!voxelmap.Filename.Contains("moon"))
+					//ignore moons	
+					bool has_stone = false;
+					bool has_iron = false;
+					bool has_silver = false;
+					bool has_gold = false;
+					bool has_nickel =false;
+					bool has_cobalt = false;
+					bool has_platinum = false;
+					bool has_magnesium = false;
+					bool has_uranium = false;
+					bool has_silicon = false;
+
+					foreach (var material in voxelmap.Materials)
 					{
-						//ignore moons				
-						m_asteroids.Add(new SeDropshipAsteroids(voxelmap));
+						switch (material.Key.Id.SubtypeName)
+						{
+							case "Stone_01":
+							case "Stone_02":
+							case "Stone_03":
+							case "Stone_04":
+							case "Stone_05":
+								has_stone = true;
+								break;
+							case "Iron_01":
+							case "Iron_02":
+								has_iron = true;
+								break;
+							case "Nickel_01":
+								has_nickel = true;
+								break;
+							case "Silver_01":
+								has_silver = true;
+								break;
+							case "Gold_01":
+								has_gold = true;
+								break;
+							case "Platinum_01":
+								has_platinum = true;
+								break;
+							case "Uraninite_01":
+								has_uranium = true;
+								break;
+							case "Silicon_01":
+								has_silicon = true;
+								break;
+							case "Magnesium_01":
+								has_magnesium = true;
+								break;
+							case "Cobalt_01":
+								has_cobalt = true;
+								break;
+							default:
+								Console.WriteLine("Dropship Plugin Warning: Could not identify Unknown Material: " + material.Key.Id.SubtypeName.ToString());
+								break;
+						}
 					}
+					if((requireMagnesium && has_magnesium) || !requireMagnesium)
+					{
+						if(( requireAllVitalMats && has_iron && has_silicon && has_silver && has_gold && has_nickel && has_cobalt && has_platinum && has_uranium && has_stone) || !requireAllVitalMats)
+							m_asteroids.Add(new SeDropshipAsteroids(voxelmap));
+						else
+							Console.WriteLine("Dropship Plugin Warning: Could not register astreroid, lacking required materials. " + voxelmap.Filename.ToString());
+					}
+					else
+					{
+						Console.WriteLine("Dropship Plugin Warning: Could not register astreroid, lacking required materials. " + voxelmap.Filename.ToString());
+					}
+
+						
 				}
-				Thread.Sleep(resolution);
 			}
 			List<CubeGridEntity> ignore = SectorObjectManager.Instance.GetTypedInternalData<CubeGridEntity>();
-			while(m_running)
+			foreach (CubeGridEntity grid in ignore)
 			{
-				try
-				{
-					Thread.Sleep(resolution); //update the resolution to 1 second
-					List<CubeGridEntity> huntlist = SectorObjectManager.Instance.GetTypedInternalData<CubeGridEntity>();
-					foreach (CubeGridEntity grid in huntlist)
-					{
-						Thread.Yield();//yield processing to other things
-						if (grid.IsLoading) continue;
-						if (ignore.Exists(x => x.EntityId == grid.EntityId))
-						{
-							continue;
-						}
-						ignore.Add(grid);
-						if (ServerNetworkManager.Instance.GetConnectedPlayers().Count == 0) continue;
-						long  tempowner = 0;
-						bool found = false;
-						CockpitEntity cockpit = null;
-						foreach (CubeBlockEntity cubein in grid.CubeBlocks)
-						{
-							if (cubein.Owner != 0) tempowner = cubein.Owner;
-							
-							if (cubein is CockpitEntity)
-							{
-								cockpit = (CockpitEntity)cubein;
-								if (cockpit.CustomName == "Dropship")
-								{
-									found = true;
-									
-								}
-							}
-						}
-						if(found && cockpit != null)
-						{
-							Thread dropstep = new Thread(() => doDrop(grid, cockpit, tempowner));
-							dropstep.Priority = ThreadPriority.BelowNormal;
-							dropstep.Start();
-						}
-					}
-				}
-				catch (Exception ex) 
-				{ 
-					LogManager.APILog.WriteLineAndConsole( ex.ToString()); 
-				}
+				m_ignore.Add(grid.EntityId);
 			}
+			m_loading = false;
 
 		}
 		private Vector3 FindInterceptVector(Vector3 spawnOrigin, float meteoroidSpeed, Vector3 targetOrigin, Vector3 targetVel)
@@ -404,8 +385,70 @@ namespace SEDropship
 				return shotVelOrth + shotVelTang;
 			}
 		}
+		private void OnCubeGridDetected(CubeGridEntity grid)
+		{
+			if(isdebugging)
+				LogManager.APILog.WriteLineAndConsole("OnCubeGridDetected: " + grid.DisplayName.ToString());
+			if (m_loading) return;
+			long _entityId = grid.EntityId;
+			try
+			{
+				while (grid.IsLoading)
+				{
+					Thread.Sleep(resolution);
+					grid = (CubeGridEntity)GameEntityManager.GetEntity(_entityId);
+				}
+			}
+			catch (Exception ex)
+			{
+				LogManager.APILog.WriteLineAndConsole("Failed to start up dropship." + ex.ToString());
+				return;
+			}
+			if (isdebugging)
+				LogManager.APILog.WriteLineAndConsole("OnCubeGridDetected: - Checking Ignore List -" + grid.DisplayName.ToString());
+			if (m_ignore.Exists(x => x == grid.EntityId))
+			{
+				return;
+			}
+			m_ignore.Add(grid.EntityId);
+			if (isdebugging)
+				LogManager.APILog.WriteLineAndConsole("OnCubeGridDetected: - Checking Connected Players - " + grid.DisplayName.ToString());
+			if (ServerNetworkManager.Instance.GetConnectedPlayers().Count == 0) return;
+
+			long tempowner = 0;
+			bool found = false;
+			CockpitEntity cockpit = null;
+			if (isdebugging)
+				LogManager.APILog.WriteLineAndConsole("OnCubeGridDetected: - Searching for cockpit with Dropship name - " + grid.DisplayName.ToString());
+			foreach (CubeBlockEntity cubein in grid.CubeBlocks)
+			{
+				if (cubein.Owner != 0) tempowner = cubein.Owner;
+
+				if (cubein is CockpitEntity)
+				{
+
+					CockpitEntity t_cockpit = (CockpitEntity)cubein;
+					if (t_cockpit.CustomName == "Dropship")
+					{
+						if (isdebugging)
+							LogManager.APILog.WriteLineAndConsole("OnCubeGridDetected: - found cockpit - " + grid.DisplayName.ToString());
+						cockpit = t_cockpit;
+						found = true;
+					}
+				}
+			}
+			if (found && cockpit != null)
+			{
+				if (isdebugging)
+					LogManager.APILog.WriteLineAndConsole("OnCubeGridDetected: - launching dropship thread - " + grid.DisplayName.ToString());
+				Thread dropstep = new Thread(() => doDrop(grid, cockpit, tempowner));
+				dropstep.Priority = ThreadPriority.BelowNormal;
+				dropstep.Start();
+			}		
+		}
 		public void doDrop(CubeGridEntity grid, CockpitEntity seat, long Owner)
 		{
+			Console.WriteLine("DoDrop called.");
 			//find target
 			if (m_asteroids.Count == 0)
 			{
@@ -444,7 +487,7 @@ namespace SEDropship
 				ChatManager.Instance.SendPrivateChatMessage(steamid, count.ToString() + ".");
 				Thread.Sleep(1000);
 			}
-			if(seat.Pilot != null)
+			if(seat.PilotEntity != null)
 			{
 				ChatManager.Instance.SendPrivateChatMessage(steamid, "Insertion Sequence initiated.");
 			}
@@ -456,8 +499,22 @@ namespace SEDropship
 
 				return;
 			}
-			Vector3 adjustVector = new Vector3Wrapper(asteroid.x, asteroid.y, asteroid.z);
-			target = Vector3.Add(asteroid.asteroid.Position, adjustVector);//temp, till we can query asteroid size.
+			Vector3I startadjustVector = new Vector3I(asteroid.x/2, asteroid.y/2, asteroid.z/2);
+			MyVoxelMaterialDefinition mat = asteroid.asteroid.GetMaterial(startadjustVector);
+			Vector3 dir = Vector3.Normalize(new Vector3((float)(m_gen.NextDouble() * 2 - 1), (float)(m_gen.NextDouble() * 2 - 1), (float)(m_gen.NextDouble() * 2 - 1)));
+			int trycount = 0;
+			Vector3 step = dir * trycount;
+			Vector3I adjustVector = startadjustVector + new Vector3I(step);
+			while (trycount < 100 && mat == null)
+			{
+				step = dir * trycount;
+				adjustVector = startadjustVector + new Vector3I(step);
+				trycount++;
+				mat = asteroid.asteroid.GetMaterial(adjustVector);
+			}
+			if (mat == null)
+				adjustVector = startadjustVector;
+			target = Vector3.Add(asteroid.asteroid.Position, adjustVector);
 			//float adjust = Vector3.Distance(new Vector3Wrapper(0,0,0), adjustVector);
 			Vector3Wrapper position = grid.Position;
 			Vector3Wrapper Vector3Intercept = (Vector3Wrapper)FindInterceptVector(position, startSpeed, target, new Vector3Wrapper(0, 0, 0));
@@ -493,14 +550,14 @@ namespace SEDropship
 				breakcounter++;
 				if (breakcounter % 80 * 30 == 0)
 				{
-					if(seat.Pilot != null)
+					if(seat.PilotEntity != null)
 						ChatManager.Instance.SendPrivateChatMessage(steamid, "Distance remaining: " + (Vector3.Distance(grid.Position, target) - slowDownDistance).ToString() + " meters.");
 				}
 				if(breakcounter > breakat) break;
 				Thread.Sleep(250);
 				if (grid == null) return;
 			}
-			if (seat.Pilot != null)
+			if (seat.PilotEntity != null)
 			{
 				ChatManager.Instance.SendPrivateChatMessage(steamid, "Welcome to your destination, pod will attempt to land. If navigation calculations were off it will automatically stop the pod in " + ((int)timeToCollision*2).ToString() + " seconds. Have a nice day!");
 				grid.LinearVelocity = Vector3.Multiply(Vector3.Normalize(Vector3Intercept), slowSpeed);
@@ -576,6 +633,23 @@ namespace SEDropship
 			return;
 		}
 
+		public void OnCubeGridLoaded(CubeGridEntity grid)
+		{
+
+		}
+		public void OnCubeGridDeleted(CubeGridEntity grid)
+		{
+
+		}
+		public void OnCubeGridCreated(CubeGridEntity grid)
+		{
+			Thread T = new Thread(() => OnCubeGridDetected(grid));
+			T.Start();
+		}
+		public void OnCubeGridMoved(CubeGridEntity grid)
+		{
+
+		}	
 		#endregion
 
 		#region "Chat Callbacks"
@@ -585,8 +659,7 @@ namespace SEDropship
 			saveXML();
 			try
 			{
-				if (_event.remoteUserId > 0)
-					ChatManager.Instance.SendPrivateChatMessage(_event.remoteUserId, "Dropship configuration saved.");
+				ChatManager.Instance.SendPrivateChatMessage(_event.remoteUserId, "Dropship configuration saved.");
 			}
 			catch
 			{
@@ -599,8 +672,7 @@ namespace SEDropship
 			loadXML(false);
 			try
 			{
-				if (_event.remoteUserId > 0)
-					ChatManager.Instance.SendPrivateChatMessage(_event.remoteUserId, "Dropship configuration loaded.");
+				ChatManager.Instance.SendPrivateChatMessage(_event.remoteUserId, "Dropship configuration loaded.");
 			}
 			catch
 			{
@@ -612,8 +684,7 @@ namespace SEDropship
 			loadXML(true);
 			try
 			{
-				if (_event.remoteUserId > 0)
-					ChatManager.Instance.SendPrivateChatMessage(_event.remoteUserId, "Dropship configuration defaults loaded.");
+				ChatManager.Instance.SendPrivateChatMessage(_event.remoteUserId, "Dropship configuration defaults loaded.");
 			}
 			catch
 			{

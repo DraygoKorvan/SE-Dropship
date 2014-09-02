@@ -40,6 +40,8 @@
   <ItemGroup>
     <Compile Include="Core.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SeDropshipAsteroids.cs" />
+    <Compile Include="SEDropshipSettings.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="HavokWrapper">
