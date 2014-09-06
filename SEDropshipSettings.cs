@@ -19,6 +19,9 @@ namespace SEDropship
 		private bool m_requireMagnesium = false;
 		private bool m_requireVital = true;
 		private string m_ignoreKeyword = "";
+		private string m_arrivalMsg = "";
+		private string m_bootupMsg = "";
+		private double m_messageMult = 1.0d;
 
 		public int slowDownDistance
 		{
@@ -85,6 +88,24 @@ namespace SEDropship
 			{
 				m_ignoreKeyword = value;
 			}
+		}
+
+		public string arrivalMsg 
+		{
+			get { return m_arrivalMsg; } 
+			set { m_arrivalMsg = value; } 
+		}
+
+		public string bootupMsg 
+		{
+			get { return m_bootupMsg; }
+			set { m_bootupMsg = value; }
+		}
+
+		public double messageMult
+		{
+			get { return m_messageMult; }
+			set { if(value >= 1.0d) m_messageMult = value; }
 		}
 	}
 }

@@ -219,6 +219,35 @@ namespace SEDropship
 			get { return settings.teleportDistance; }
 			set { settings.teleportDistance = value; }
 		}
+		[Category("SE Dropship")]
+		[Description("Additional bootup message.")]
+		[Browsable(true)]
+		[ReadOnly(false)]
+		public string bootupMsg
+		{
+			get { return settings.bootupMsg; }
+			set { settings.bootupMsg = value; }
+		}
+		[Category("SE Dropship")]
+		[Description("Additional arrival message.")]
+		[Browsable(true)]
+		[ReadOnly(false)]
+		public string arrivalMsg
+		{
+			get { return settings.arrivalMsg; }
+			set { settings.arrivalMsg = value; }
+		}
+		[Category("SE Dropship")]
+		[Description("Message speed multiplier, must be greater than or equal to 1")]
+		[Browsable(true)]
+		[ReadOnly(false)]
+		public double message_mult
+		{
+			get { return settings.messageMult; }
+			set { settings.messageMult = value; }
+		}
+
+		#region "Debug"
 		[Category("Debug")]
 		[Description("List of allowed asteroids")]
 		[Browsable(true)]
@@ -262,7 +291,7 @@ namespace SEDropship
 			get { return m_debuglevel; }
 			set { m_debuglevel = value; }
 		}
-
+		#endregion
 		#endregion
 
 		#region "Methods"
@@ -364,7 +393,11 @@ namespace SEDropship
 				m_ignore.Add(grid.EntityId);
 			}
 			m_loading = false;
-
+			while (m_running)
+			{
+				Thread.Sleep(10000);
+				SectorObjectManager.Instance.Refresh();
+			}
 		}
 		private Vector3 FindInterceptVector(Vector3 spawnOrigin, float meteoroidSpeed, Vector3 targetOrigin, Vector3 targetVel)
 		{
@@ -396,6 +429,8 @@ namespace SEDropship
 				while (grid.IsLoading)
 				{
 					Thread.Sleep(resolution);
+					if (isdebugging && debugLevel > 1)
+						LogManager.APILog.WriteLineAndConsole("Loading: " + _entityId);
 					grid = (CubeGridEntity)GameEntityManager.GetEntity(_entityId);
 				}
 			}
@@ -448,7 +483,8 @@ namespace SEDropship
 		}
 		public void doDrop(CubeGridEntity grid, CockpitEntity seat, long Owner)
 		{
-			Console.WriteLine("DoDrop called.");
+			if(isdebugging)
+				Console.WriteLine("DoDrop called.");
 			//find target
 			if (m_asteroids.Count == 0)
 			{
@@ -475,13 +511,13 @@ namespace SEDropship
 				}
 			}
 			ChatManager.Instance.SendPrivateChatMessage(steamid, "Dropship booting up, please stay in your seat for insertion.");
-			Thread.Sleep(1000);
+			Thread.Sleep((int)(2000 * message_mult));
 			ChatManager.Instance.SendPrivateChatMessage(steamid, "If you exited your ship please return to the passenger seat before the countdown finishes.");
-			Thread.Sleep(2000);
+			Thread.Sleep((int)(5000 * message_mult));
 			ChatManager.Instance.SendPrivateChatMessage(steamid, "Dropship Sequence Initiated, please remain seated. Exiting your seat will abort automatic insertion.");
-			Thread.Sleep(1000);
+			Thread.Sleep((int)(2000 * message_mult));
 			ChatManager.Instance.SendPrivateChatMessage(steamid, "Beginning Insertion Sequence.");
-			Thread.Sleep(1000);	
+			Thread.Sleep((int)(1000 * message_mult));	
 			for ( int count = countdown; count > 0; count--)
 			{
 				ChatManager.Instance.SendPrivateChatMessage(steamid, count.ToString() + ".");
@@ -499,6 +535,8 @@ namespace SEDropship
 
 				return;
 			}
+			if (seat.PilotEntity != null && bootupMsg != "")
+				ChatManager.Instance.SendPrivateChatMessage(steamid, bootupMsg);
 			Vector3I startadjustVector = new Vector3I(asteroid.x/2, asteroid.y/2, asteroid.z/2);
 			MyVoxelMaterialDefinition mat = asteroid.asteroid.GetMaterial(startadjustVector);
 			Vector3 dir = Vector3.Normalize(new Vector3((float)(m_gen.NextDouble() * 2 - 1), (float)(m_gen.NextDouble() * 2 - 1), (float)(m_gen.NextDouble() * 2 - 1)));
@@ -561,6 +599,9 @@ namespace SEDropship
 			{
 				ChatManager.Instance.SendPrivateChatMessage(steamid, "Welcome to your destination, pod will attempt to land. If navigation calculations were off it will automatically stop the pod in " + ((int)timeToCollision*2).ToString() + " seconds. Have a nice day!");
 				grid.LinearVelocity = Vector3.Multiply(Vector3.Normalize(Vector3Intercept), slowSpeed);
+				Thread.Sleep(1000);
+				if (seat.PilotEntity != null && arrivalMsg != "")
+					ChatManager.Instance.SendPrivateChatMessage(steamid, arrivalMsg);
 				Thread.Sleep((int)timeToCollision*2 * 1000);
 
 				grid.LinearVelocity = new Vector3Wrapper(0, 0, 0);
