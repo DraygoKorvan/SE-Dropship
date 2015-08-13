@@ -44,66 +44,72 @@
     <Compile Include="SEDropshipSettings.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="HavokWrapper">
-      <HintPath>Libraries\HavokWrapper.dll</HintPath>
-    </Reference>
-    <Reference Include="Sandbox.Audio, Version=0.1.5319.27733, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="HavokWrapper, Version=1.0.5368.26221, Culture=neutral, processorArchitecture=AMD64">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>Libraries\Sandbox.Audio.dll</HintPath>
+      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\SpaceEngineers\DedicatedServer64\HavokWrapper.dll</HintPath>
+    </Reference>
+    <Reference Include="NLog">
+      <HintPath>C:\Users\Chris\Desktop\Ded64\DedicatedServer\DedicatedServer64\NLog.dll</HintPath>
     </Reference>
     <Reference Include="Sandbox.Common, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>Libraries\Sandbox.Common.dll</HintPath>
+      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\SpaceEngineers\DedicatedServer64\Sandbox.Common.dll</HintPath>
     </Reference>
-    <Reference Include="Sandbox.Common.XmlSerializers, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="Sandbox.Game, Version=0.1.5382.26157, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>Libraries\Sandbox.Common.XmlSerializers.dll</HintPath>
+      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\SpaceEngineers\Bin64\Sandbox.Game.dll</HintPath>
     </Reference>
-    <Reference Include="Sandbox.Game, Version=0.1.5319.27733, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="Sandbox.Graphics, Version=0.1.5683.28557, Culture=neutral, processorArchitecture=AMD64">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>Libraries\Sandbox.Game.dll</HintPath>
+      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\SpaceEngineers\DedicatedServer64\Sandbox.Graphics.dll</HintPath>
     </Reference>
-    <Reference Include="Sandbox.Graphics, Version=0.1.5319.27733, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="SEComm">
+      <HintPath>C:\Users\Chris\Desktop\Ded64\DedicatedServer\DedicatedServer64\SEComm.dll</HintPath>
+    </Reference>
+    <Reference Include="SEModAPI, Version=0.2.6.4, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>Libraries\Sandbox.Graphics.dll</HintPath>
+      <HintPath>C:\Users\Chris\Desktop\Ded64\DedicatedServer\DedicatedServer64\SEModAPI.dll</HintPath>
     </Reference>
-    <Reference Include="Sandbox.Input, Version=0.1.5319.27733, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="SEModAPIExtensions, Version=0.1.6.9, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>Libraries\Sandbox.Input.dll</HintPath>
+      <HintPath>C:\Users\Chris\Desktop\Ded64\DedicatedServer\DedicatedServer64\SEModAPIExtensions.dll</HintPath>
     </Reference>
-    <Reference Include="SEModAPI, Version=0.2.6.1, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="SEModAPIInternal, Version=0.2.3.10, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>Libraries\SEModAPI.dll</HintPath>
+      <HintPath>C:\Users\Chris\Desktop\Ded64\DedicatedServer\DedicatedServer64\SEModAPIInternal.dll</HintPath>
     </Reference>
-    <Reference Include="SEModAPIExtensions, Version=0.1.3.5, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>Libraries\SEModAPIExtensions.dll</HintPath>
+    <Reference Include="SpaceEngineers.Game">
+      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\SpaceEngineers\DedicatedServer64\SpaceEngineers.Game.dll</HintPath>
     </Reference>
-    <Reference Include="SEModAPIInternal, Version=0.1.7.8, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>Libraries\SEModAPIInternal.dll</HintPath>
-    </Reference>
-    <Reference Include="SEServerExtender">
-      <HintPath>Libraries\SEServerExtender.exe</HintPath>
+    <Reference Include="SpaceEngineersDedicated">
+      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\SpaceEngineers\DedicatedServer64\SpaceEngineersDedicated.exe</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.XML" />
-    <Reference Include="VRage.Common, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="VRage, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>Libraries\VRage.Common.dll</HintPath>
+      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\SpaceEngineers\DedicatedServer64\VRage.dll</HintPath>
+    </Reference>
+    <Reference Include="VRage.Dedicated">
+      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\SpaceEngineers\DedicatedServer64\VRage.Dedicated.dll</HintPath>
+    </Reference>
+    <Reference Include="VRage.Game">
+      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\SpaceEngineers\DedicatedServer64\VRage.Game.dll</HintPath>
     </Reference>
     <Reference Include="VRage.Library, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>Libraries\VRage.Library.dll</HintPath>
+      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\SpaceEngineers\DedicatedServer64\VRage.Library.dll</HintPath>
     </Reference>
     <Reference Include="VRage.Math, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>Libraries\VRage.Math.dll</HintPath>
+      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\SpaceEngineers\DedicatedServer64\VRage.Math.dll</HintPath>
     </Reference>
-    <Reference Include="VRage.Render, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>Libraries\VRage.Render.dll</HintPath>
+    <Reference Include="VRage.Native">
+      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\SpaceEngineers\DedicatedServer64\VRage.Native.dll</HintPath>
     </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <WCFMetadata Include="Service References\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

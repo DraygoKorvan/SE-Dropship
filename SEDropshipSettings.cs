@@ -17,11 +17,12 @@ namespace SEDropship
 		private bool m_deleteIfAbort = false;
 		private int m_teleportDistance = 10000;
 		private bool m_requireMagnesium = false;
-		private bool m_requireVital = true;
+		private bool m_requireVital = false;
 		private string m_ignoreKeyword = "";
 		private string m_arrivalMsg = "";
 		private string m_bootupMsg = "";
 		private double m_messageMult = 1.0d;
+		private string m_whitelistKeyword = "";
 
 		public int slowDownDistance
 		{
@@ -107,5 +108,11 @@ namespace SEDropship
 			get { return m_messageMult; }
 			set { if(value >= 1.0d) m_messageMult = value; }
 		}
-	}
+
+		public string whitelistKeyword
+		{
+			get { return m_whitelistKeyword; }
+			set { m_whitelistKeyword = value; }
+		}
+    }
 }

@@ -2,9 +2,15 @@
 using System.Text;
 using System.ComponentModel;
 using System.Collections;
+using System.Collections.Generic;
 
-using SEModAPIInternal.API.Entity.Sector.SectorObject;
+//using SEModAPIInternal.API.Entity.Sector.SectorObject;
+using Sandbox.ModAPI;
+using Sandbox.Definitions;
+using Sandbox.Common.ObjectBuilders.Voxels;
 
+using VRageMath;
+using VRage.Voxels;
 
 
 namespace SEDropship
@@ -142,7 +148,7 @@ namespace SEDropship
 			get 
 			{
 				SeDropshipAsteroids emp = this.collection[index];
-				return emp.asteroid.Name;
+				return emp.asteroid.GetFriendlyName();
 			}
 		}
 
@@ -152,7 +158,7 @@ namespace SEDropship
 			{
 				SeDropshipAsteroids roid = this.collection[index];
 				StringBuilder sb = new StringBuilder();
-				sb.Append(roid.asteroid.Name);
+				sb.Append(roid.asteroid.GetFriendlyName());
 				sb.Append(", X:");
 				sb.Append(roid.x);
 				sb.Append(", Y:");
@@ -205,7 +211,7 @@ namespace SEDropship
 			if (destType == typeof(string) && value is SeDropshipAsteroids)
 			{
 				SeDropshipAsteroids asteroids = (SeDropshipAsteroids)value;
-				return asteroids.asteroid.Name;
+				return asteroids.asteroid.GetFriendlyName();
 			}
 			return base.ConvertTo(context,culture,value,destType);
 		}
@@ -215,17 +221,45 @@ namespace SEDropship
 	[TypeConverter(typeof(AsteroidsConverter))]
 	public class SeDropshipAsteroids
 	{
-		private VoxelMap m_asteroid;
+		private IMyVoxelMap m_asteroid;
 		private int m_sizex = 50;
 		private int m_sizey = 50;
 		private int m_sizez = 50;
+		private Dictionary<MyVoxelMaterialDefinition, float> m_materialTotals = new Dictionary<MyVoxelMaterialDefinition, float>();
+		private MyStorageDataCache m_cache;
+		private List<MyVoxelMaterialDefinition> m_Defs = new List<MyVoxelMaterialDefinition>();
 
-		public SeDropshipAsteroids(VoxelMap asteroid)
+		private static MyVoxelMaterialDefinition m_irondef = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Iron_01");
+		private static MyVoxelMaterialDefinition m_irondef2 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Iron_02");
+
+		private static MyVoxelMaterialDefinition m_nickeldef1 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Nickel_01");
+
+		private static MyVoxelMaterialDefinition m_cobaltdef1 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Cobalt_01");
+
+		private static MyVoxelMaterialDefinition m_magnesiumdef1 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Magnesium_01");
+
+		private static MyVoxelMaterialDefinition m_silicondef1 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Silicon_01");
+
+		private static MyVoxelMaterialDefinition m_silverdef1 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Silver_01");
+
+		private static MyVoxelMaterialDefinition m_golddef1 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Gold_01");
+
+		private static MyVoxelMaterialDefinition m_platinumdef1 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Platinum_01");
+
+		private static MyVoxelMaterialDefinition m_uraniumdef1 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Uraninite_01");
+
+		private static MyVoxelMaterialDefinition m_icedef1 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Ice_01");
+		private static MyVoxelMaterialDefinition m_icedef2 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Ice_02");
+
+
+
+
+		public SeDropshipAsteroids(IMyVoxelMap asteroid)
 		{
 			m_asteroid = asteroid;
 			calculateSize();
 		}
-		public SeDropshipAsteroids(VoxelMap asteroid, int x, int y, int z)
+		public SeDropshipAsteroids(IMyVoxelMap asteroid, int x, int y, int z)
 		{
 			m_sizex = x;
 			m_sizey = y;
@@ -235,14 +269,65 @@ namespace SEDropship
 
 		private void calculateSize()
 		{
-			m_sizex = (int)m_asteroid.Size.X;
-			m_sizey = (int)m_asteroid.Size.Y;
-			m_sizez = (int)m_asteroid.Size.Z;
+			try
+			{
+
+				m_sizex = (int)m_asteroid.Physics.CenterOfMassWorld.X;
+				m_sizey = (int)m_asteroid.Physics.CenterOfMassWorld.Y;
+				m_sizez = (int)m_asteroid.Physics.CenterOfMassWorld.Z;
+			}
+			catch (MissingMethodException)
+			{
+				m_sizex = 50;
+				m_sizey = 50;
+				m_sizez = 50;
+				return;
+			}
+			catch (Exception)
+			{
+				m_sizex = 50;
+				m_sizey = 50;
+				m_sizez = 50;
+				return;
+			}
+
+		}
+		public void Refresh()
+		{
+			m_cache = new MyStorageDataCache();
+			Vector3I size = m_asteroid.Storage.Size;
+			m_cache.Resize(size);
+			m_asteroid.Storage.ReadRange(m_cache, MyStorageDataTypeFlags.Material, 0, Vector3I.Zero, size - 1);
+			//voxelMap.Storage.ReadRange(m_cache, MyStorageDataTypeFlags.Material, Vector3I.Zero, size - 1);
+			//			});
+
+			foreach (byte materialIndex in m_cache.Data)
+			{
+				try
+				{
+					MyVoxelMaterialDefinition material = MyDefinitionManager.Static.GetVoxelMaterialDefinition(materialIndex);
+					if (material == null)
+						continue;
+
+					if (!m_materialTotals.ContainsKey(material))
+					{
+						m_materialTotals.Add(material, 1);
+						m_Defs.Add(material);
+					}
+					else
+						m_materialTotals[material]++;
+				}
+				catch (Exception ex)
+				{
+					Console.WriteLine(ex);
+				}
+			}
+
 		}
 
 		[Browsable(true)]
 		[ReadOnly(true)]
-		public VoxelMap asteroid
+		public IMyVoxelMap asteroid
 		{
 			get { return m_asteroid; }
 
@@ -267,6 +352,122 @@ namespace SEDropship
 		{
 			get { return m_sizez; }
 
+		}
+		public string Name
+		{
+			get { return m_asteroid.StorageName.ToString();  }
+		}
+		[Browsable(true)]
+		[ReadOnly(true)]
+		public bool has_iron
+		{
+			get 
+			{
+				if (m_cache != null)
+					return m_Defs.Contains(m_irondef) || m_Defs.Contains(m_irondef2);
+				return false;
+			}
+		}
+
+		[Browsable(true)]
+		[ReadOnly(true)]
+		public bool has_cobalt
+		{
+			get
+			{
+				if (m_cache != null)
+					return m_Defs.Contains(m_cobaltdef1);
+				return false;
+			}
+		}
+		[Browsable(true)]
+		[ReadOnly(true)]
+		public bool has_nickel
+		{
+			get
+			{
+				if (m_cache != null)
+					return m_Defs.Contains(m_nickeldef1);
+				return false;
+			}
+		}
+		[Browsable(true)]
+		[ReadOnly(true)]
+		public bool has_magnesium
+		{
+			get
+			{
+				if (m_cache != null)
+					return m_Defs.Contains(m_magnesiumdef1);
+				return false;
+			}
+		}
+		[Browsable(true)]
+		[ReadOnly(true)]
+		public bool has_silicon
+		{
+			get
+			{
+				if (m_cache != null)
+					return m_Defs.Contains(m_silicondef1);
+				return false;
+			}
+		}
+
+		[Browsable(true)]
+		[ReadOnly(true)]
+		public bool has_silver
+		{
+			get
+			{
+				if (m_cache != null)
+					return m_Defs.Contains(m_silverdef1);
+				return false;
+			}
+		}
+		[Browsable(true)]
+		[ReadOnly(true)]
+		public bool has_gold
+		{
+			get
+			{
+				if (m_cache != null)
+					return m_Defs.Contains(m_golddef1);
+				return false;
+			}
+		}
+		[Browsable(true)]
+		[ReadOnly(true)]
+		public bool has_platinum
+		{
+			get
+			{
+				if (m_cache != null)
+					return m_Defs.Contains(m_platinumdef1);
+				return false;
+			}
+		}
+		[Browsable(true)]
+		[ReadOnly(true)]
+		public bool has_uranium
+		{
+			get
+			{
+				if (m_cache != null)
+					return m_Defs.Contains(m_uraniumdef1);
+				return false;
+			}
+		}
+		[Browsable(true)]
+		[ReadOnly(true)]
+		public bool has_ice
+		{
+			get
+			{
+				if (m_cache != null)
+					return m_Defs.Contains(m_icedef1) || m_Defs.Contains(m_icedef2);
+				return false;
+			}
 		}
 	}
 }
