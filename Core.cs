@@ -2,22 +2,12 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
-using System.Text;
-using System.Timers;
 using System.Reflection;
 using System.Threading;
 using System.IO;
-using System.Xml;
 using System.Xml.Serialization;
 
 using Sandbox.Common.ObjectBuilders;
-using Sandbox.Common.ObjectBuilders.VRageData;
-using Sandbox.Definitions;
-using Sandbox.Game.World;
-using Sandbox.Engine.Multiplayer;
-using Sandbox.Game.Entities.Blocks;
-using Sandbox.Game.Entities.Cube;
-using Sandbox.Game.Entities;
 using Sandbox;
 
 
@@ -26,23 +16,12 @@ using SEModAPIExtensions.API.Plugin.Events;
 using SEModAPIExtensions.API;
 
 using SEModAPIInternal.API.Common;
-using SEModAPIInternal.API.Entity;
-using SEModAPIInternal.API.Entity.Sector.SectorObject;
-using SEModAPIInternal.API.Entity.Sector.SectorObject.CubeGrid;
-using SEModAPIInternal.API.Entity.Sector.SectorObject.CubeGrid.CubeBlock;
 using SEModAPIInternal.API.Server;
-using SEModAPIInternal.Support;
-
-using SEModAPI.API;
 
 using Sandbox.ModAPI;
 
 using VRageMath;
-using VRage.Common.Utils;
-using VRage.Collections;
-using VRage;
 using VRage.ModAPI;
-using VRage.Voxels;
 
 
 namespace SEDropship
@@ -52,7 +31,7 @@ namespace SEDropship
 		public Vector3 Sum;
 		public int Count;
 	}*/
-	public class SEDropship : PluginBase
+	public class SEDropship : PluginBase, IChatEventHandler
 	{
 		
 		#region "Attributes"
@@ -93,25 +72,6 @@ namespace SEDropship
 			m_main.Start();
 			m_main.Priority = ThreadPriority.BelowNormal;//lower priority to make room for other tasks if needed.
 
-			//Register Chat Commands
-			/*ChatManager.ChatCommand command = new ChatManager.ChatCommand();
-			command.callback = saveXML;
-			command.command = "se-dropship-save";
-			command.requiresAdmin = true;
-			ChatManager.Instance.RegisterChatCommand(command);
-
-			command = new ChatManager.ChatCommand();
-			command.callback = loadXML;
-			command.command = "se-dropship-load";
-			command.requiresAdmin = true;
-			ChatManager.Instance.RegisterChatCommand(command);
-
-			command = new ChatManager.ChatCommand();
-			command.callback = loadDefaults;
-			command.command = "se-dropship-loaddefaults";
-			command.requiresAdmin = true;
-			ChatManager.Instance.RegisterChatCommand(command);
-			//End Register Chat commands		*/
 			MyAPIGateway.Entities.OnEntityAdd -= OnEntityAdd;
 			MyAPIGateway.Entities.OnEntityAdd += OnEntityAdd;
 			Console.WriteLine("SE Dropship Plugin '" + Id.ToString() + "' initialized!");	
@@ -180,15 +140,6 @@ namespace SEDropship
 		{
 			get { return settings.requireMagnesium; }
 			set { settings.requireMagnesium = value; }
-		}
-		[Category("SE Dropship")]
-		[Description("Resolution settings, 1 second = 1000")]
-		[Browsable(true)]
-		[ReadOnly(false)]
-		public int resolution
-		{
-			get { return settings.resolution; }
-			set { settings.resolution = value; }
 		}
 
 		[Category("SE Dropship")]
@@ -359,13 +310,13 @@ namespace SEDropship
 						{
 							if (!(entity is IMyVoxelMap))
 								continue;
-							Console.WriteLine("Found voxelmap");
+							//Console.WriteLine("Found voxelmap");
 							IMyVoxelMap tmpasteroid = (IMyVoxelMap)entity;
 
 							if (tmpasteroid.LocalAABB.Size.X > 120F)
 							{
 								m_cache.Add(new SeDropshipAsteroids(tmpasteroid));
-								Console.WriteLine("Adding to valid asteroid list");
+								//Console.WriteLine("Adding to valid asteroid list");
 							}
 								
 
@@ -745,18 +696,46 @@ namespace SEDropship
 			T.Start();
 		}
 
+		public void OnChatReceived(ChatManager.ChatEvent chatEvent)
+		{
+			if (chatEvent.Message[0] != '/')
+				return;
+			HandleChatMessage(chatEvent);
+		}
+
+		public void OnChatSent(ChatManager.ChatEvent chatEvent)
+		{
+			return;
+		}
+
 
 
 		#endregion
 
 		#region "Chat Callbacks"
-		/*
-		public void saveXML(ChatManager.ChatEvent _event)
+
+		private void HandleChatMessage(ChatManager.ChatEvent _event)
+		{
+			string[] words = _event.Message.Split(' ');
+			words[0] = words[0].ToLower();
+			bool isadmin = (PlayerManager.Instance.IsUserAdmin(_event.SourceUserId) || _event.SourceUserId == 0);
+			if (words[0] == "/ds-save" && isadmin)
+				commandSaveXML(_event);
+			if (words[0] == "/ds-load" && isadmin)
+				commandLoadXML(_event);
+			if (words[0] == "/ds-loaddefaults" && isadmin)
+				commandLoadDefaults(_event);
+			if (words[0] == "/ds-refresh" && isadmin)
+				commandRefresh(_event);
+		}
+
+		
+		public void commandSaveXML(ChatManager.ChatEvent _event)
 		{
 			saveXML();
 			try
 			{
-				ChatManager.Instance.SendPrivateChatMessage(_event.remoteUserId, "Dropship configuration saved.");
+				ChatManager.Instance.SendPrivateChatMessage(_event.SourceUserId, "Dropship configuration saved.");
 			}
 			catch
 			{
@@ -764,30 +743,43 @@ namespace SEDropship
 			}
 
 		}
-		public void loadXML(ChatManager.ChatEvent _event)
+		public void commandLoadXML(ChatManager.ChatEvent _event)
 		{
 			loadXML(false);
 			try
 			{
-				ChatManager.Instance.SendPrivateChatMessage(_event.remoteUserId, "Dropship configuration loaded.");
+				ChatManager.Instance.SendPrivateChatMessage(_event.SourceUserId, "Dropship configuration loaded.");
 			}
 			catch
 			{
 				//donothing
 			}
 		}
-		public void loadDefaults(ChatManager.ChatEvent _event)
+		public void commandLoadDefaults(ChatManager.ChatEvent _event)
 		{
 			loadXML(true);
 			try
 			{
-				ChatManager.Instance.SendPrivateChatMessage(_event.remoteUserId, "Dropship configuration defaults loaded.");
+				ChatManager.Instance.SendPrivateChatMessage(_event.SourceUserId, "Dropship configuration defaults loaded.");
 			}
 			catch
 			{
 				//donothing
 			}
-		}*/
+		}
+		public void commandRefresh(ChatManager.ChatEvent _event)
+		{
+			Thread T = new Thread(refresh);
+			T.Start();
+			try
+			{
+				ChatManager.Instance.SendPrivateChatMessage(_event.SourceUserId, "Refreshing Asteroid Collection, this may take a while.");
+			}
+			catch
+			{
+				//donothing
+			}
+		}
 		#endregion
 		#endregion
 	}

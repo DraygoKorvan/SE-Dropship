@@ -10,7 +10,6 @@ namespace SEDropship
 	{
 		private int m_slowDownDistance = 250;
 		private bool m_anyAsteroid = true;
-		private int m_resolution = 1000;
 		private float m_slowSpeed = 5.0F;
 		private float m_startSpeed = 104.4F;
 		private int m_countdown = 10;
@@ -34,11 +33,6 @@ namespace SEDropship
 		{
 			get { return m_anyAsteroid; }
 			set { m_anyAsteroid = value; }
-		}
-		public int resolution
-		{
-			get { return m_resolution; }
-			set { if (value > 0) m_resolution = value; }
 		}
 		public float slowSpeed
 		{
