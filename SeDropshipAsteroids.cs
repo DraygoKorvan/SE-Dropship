@@ -222,32 +222,25 @@ namespace SEDropship
 	public class SeDropshipAsteroids
 	{
 		private IMyVoxelMap m_asteroid;
-		private int m_sizex = 50;
-		private int m_sizey = 50;
-		private int m_sizez = 50;
+		private double m_sizex = 50;
+		private double m_sizey = 50;
+		private double m_sizez = 50;
 		private Dictionary<MyVoxelMaterialDefinition, float> m_materialTotals = new Dictionary<MyVoxelMaterialDefinition, float>();
 		private MyStorageDataCache m_cache;
 		private List<MyVoxelMaterialDefinition> m_Defs = new List<MyVoxelMaterialDefinition>();
+		private Vector3D m_position;
+		private string m_name;
 
 		private static MyVoxelMaterialDefinition m_irondef = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Iron_01");
 		private static MyVoxelMaterialDefinition m_irondef2 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Iron_02");
-
 		private static MyVoxelMaterialDefinition m_nickeldef1 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Nickel_01");
-
 		private static MyVoxelMaterialDefinition m_cobaltdef1 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Cobalt_01");
-
 		private static MyVoxelMaterialDefinition m_magnesiumdef1 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Magnesium_01");
-
 		private static MyVoxelMaterialDefinition m_silicondef1 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Silicon_01");
-
 		private static MyVoxelMaterialDefinition m_silverdef1 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Silver_01");
-
 		private static MyVoxelMaterialDefinition m_golddef1 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Gold_01");
-
 		private static MyVoxelMaterialDefinition m_platinumdef1 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Platinum_01");
-
 		private static MyVoxelMaterialDefinition m_uraniumdef1 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Uraninite_01");
-
 		private static MyVoxelMaterialDefinition m_icedef1 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Ice_01");
 		private static MyVoxelMaterialDefinition m_icedef2 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Ice_02");
 
@@ -257,31 +250,18 @@ namespace SEDropship
 		public SeDropshipAsteroids(IMyVoxelMap asteroid)
 		{
 			m_asteroid = asteroid;
-			calculateSize();
-		}
-		public SeDropshipAsteroids(IMyVoxelMap asteroid, int x, int y, int z)
-		{
-			m_sizex = x;
-			m_sizey = y;
-			m_sizez = z;
-			m_asteroid = asteroid;
+			m_name = m_asteroid.StorageName.ToString();
+            calculateSize();
 		}
 
 		private void calculateSize()
 		{
 			try
 			{
-
-				m_sizex = (int)m_asteroid.Physics.CenterOfMassWorld.X;
-				m_sizey = (int)m_asteroid.Physics.CenterOfMassWorld.Y;
-				m_sizez = (int)m_asteroid.Physics.CenterOfMassWorld.Z;
-			}
-			catch (MissingMethodException)
-			{
-				m_sizex = 50;
-				m_sizey = 50;
-				m_sizez = 50;
-				return;
+				m_position = m_asteroid.PositionLeftBottomCorner - m_asteroid.Physics.Center;
+				m_sizex = m_position.X;
+				m_sizey = m_position.Y;
+				m_sizez = m_position.Z;
 			}
 			catch (Exception)
 			{
@@ -334,28 +314,37 @@ namespace SEDropship
 		}
 		[Browsable(true)]
 		[ReadOnly(true)]
-		public int x
+		public double x
 		{
 			get { return m_sizex; }
 
 		}
 		[Browsable(true)]
 		[ReadOnly(true)]
-		public int y
+		public double y
 		{
 			get { return m_sizey; }
 
 		}
 		[Browsable(true)]
 		[ReadOnly(true)]
-		public int z
+		public double z
 		{
 			get { return m_sizez; }
 
 		}
+		[Browsable(true)]
+		[ReadOnly(true)]
 		public string Name
 		{
-			get { return m_asteroid.StorageName.ToString();  }
+			get
+			{
+				if (m_name != null)
+					return m_name;
+				if (m_asteroid != null)
+					return m_name = m_asteroid.StorageName.ToString();
+				return null;
+			}
 		}
 		[Browsable(true)]
 		[ReadOnly(true)]
@@ -468,6 +457,16 @@ namespace SEDropship
 					return m_Defs.Contains(m_icedef1) || m_Defs.Contains(m_icedef2);
 				return false;
 			}
+		}
+		[Browsable(true)]
+		[ReadOnly(true)]
+		public Vector3D center
+		{
+			get
+			{
+				return m_position;
+			}
+
 		}
 	}
 }

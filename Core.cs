@@ -337,6 +337,7 @@ namespace SEDropship
 		private void refresh()
 		{
 			m_loading = true;
+			m_asteroids.Clear();
 			try
 			{
 				//var Cache = new MyStorageDataCache();
@@ -350,17 +351,13 @@ namespace SEDropship
 					string name = obj.Name;
 					try
 					{
-						obj.Refresh();//refersh grid
+						obj.Refresh();//refresh
 					}
 					catch
 					{
 						Console.WriteLine("Failure in inventory attempt..");
 						continue;
 					}
-
-					//what name do we want
-
-
 					if (obj.has_cobalt && obj.has_gold && obj.has_ice && obj.has_iron && obj.has_nickel && obj.has_silicon && obj.has_silver && obj.has_uranium)
 						vitalmats = true;
 					if (obj.has_magnesium)
@@ -404,7 +401,7 @@ namespace SEDropship
 
 			m_loading = false;
 		}
-		private Vector3D FindInterceptVector(Vector3D spawnOrigin, double meteoroidSpeed, Vector3D targetOrigin, Vector3D targetVel)
+		private Vector3D FindInterceptVector(Vector3D spawnOrigin, double dropshipspeed, Vector3D targetOrigin, Vector3D targetVel)
 		{
 
 			Vector3D dirToTarget = Vector3D.Normalize(targetOrigin - spawnOrigin);
@@ -412,13 +409,13 @@ namespace SEDropship
 			Vector3D targetVelTang = targetVel - targetVelOrth;
 			Vector3D shotVelTang = targetVelTang;
 			double shotVelSpeed = shotVelTang.Length();
-			if (shotVelSpeed > meteoroidSpeed)
+			if (shotVelSpeed > dropshipspeed)
 			{
-				return Vector3D.Multiply(targetVel, meteoroidSpeed);
+				return Vector3D.Multiply(targetVel, dropshipspeed);
 			}
 			else
 			{
-				double shotSpeedOrth = (double)Math.Sqrt(meteoroidSpeed * meteoroidSpeed - shotVelSpeed * shotVelSpeed);
+				double shotSpeedOrth = Math.Sqrt(dropshipspeed * dropshipspeed - shotVelSpeed * shotVelSpeed);
 				Vector3D shotVelOrth = dirToTarget * shotSpeedOrth;
 				return shotVelOrth + shotVelTang;
 			}
@@ -430,43 +427,21 @@ namespace SEDropship
 			//Console.WriteLine("Entity Detected");
 			if (entity is IMyCubeGrid)
 			{
-				Console.WriteLine("GridDetected");
+				//Console.WriteLine("GridDetected");
 				IMyCubeGrid entitygrid = (IMyCubeGrid)entity;
 				if (entitygrid.DisplayName.ToLower().Contains("dropship"))
 				{
-					//Thread.Sleep(1000); //NO runs in main game thread!!
-					var cubeblocks = new List<IMySlimBlock>();
-					Console.WriteLine("Dropship detected");
-					SandboxGameAssemblyWrapper.Instance.GameAction(() =>
-					{
-						MyObjectBuilder_CubeGrid gridBuilder;
-						gridBuilder = (MyObjectBuilder_CubeGrid)entitygrid.GetObjectBuilder();
-						bool found = false;
-						MyObjectBuilder_Cockpit cockpit = null;
-						foreach (MyObjectBuilder_CubeBlock block in gridBuilder.CubeBlocks)
-						{
-							//Console.WriteLine(block.SubtypeName.ToString());
-						
-							if (block is MyObjectBuilder_Cockpit)
-							{
-								cockpit = (MyObjectBuilder_Cockpit)block;
-								if(cockpit.Pilot != null)
-								{
-									found = true;
-									break;
-								}
-							}
-						}
-						Console.WriteLine(found.ToString());
-						Thread breakout = new Thread(() => doDrop(entitygrid,cockpit));
-						breakout.Start();
-					});
+					//Console.WriteLine("Dropship detected");
+
+
+					Thread breakout = new Thread(() => doDrop(entitygrid));
+					breakout.Start();
 
 
 				}
 			}
 		}
-		public void doDrop(IMyCubeGrid grid, MyObjectBuilder_Cockpit seat)
+		public void doDrop(IMyCubeGrid grid)
 		{
 
 			//if(isdebugging)
@@ -490,10 +465,9 @@ namespace SEDropship
 			{
 				grid.Physics.Activate();//fixes a bug...
 			});
-			Vector3D centerofmass = asteroid.asteroid.Physics.CenterOfMassWorld;
-			Console.WriteLine("Center of Mass " + centerofmass.ToString());
-			Vector3D target = asteroid.asteroid.PositionLeftBottomCorner - asteroid.asteroid.Physics.Center;
-			Console.WriteLine(target.ToString());
+			//store target position.
+			Vector3D target = asteroid.center;
+
 			List<ulong> steamlist = ServerNetworkManager.Instance.GetConnectedPlayers();
 			ulong steamid = 0;
 			foreach( ulong steam_id in steamlist)
@@ -501,11 +475,11 @@ namespace SEDropship
 				List<long> playerids =  PlayerMap.Instance.GetPlayerIdsFromSteamId(steam_id);
 				foreach (long playerid in playerids)
 				{
-					Console.WriteLine("Connected playerid:" + playerid.ToString());
+					//Console.WriteLine("Connected playerid:" + playerid.ToString());
 					if(playerid == Owner)
 					{
 						steamid = steam_id;
-						Console.WriteLine("Found match" + steamid.ToString());
+						//Console.WriteLine("Found match" + steamid.ToString());
 					}
 				}
 			}
@@ -528,29 +502,17 @@ namespace SEDropship
 				ChatManager.Instance.SendPrivateChatMessage(steamid, count.ToString() + ".");
 				Thread.Sleep(1000);
 			}
-			SandboxGameAssemblyWrapper.Instance.GameAction(() =>
+
+			ChatManager.Instance.SendPrivateChatMessage(steamid, "Insertion Sequence initiated.");
+
+			if (bootupMsg != "")
+			ChatManager.Instance.SendPrivateChatMessage(steamid, bootupMsg);
+			Vector3D position = Vector3D.Zero;
+            SandboxGameAssemblyWrapper.Instance.GameAction(() =>
 			{
-				if(seat.Pilot != null)
-				{
-					ChatManager.Instance.SendPrivateChatMessage(steamid, "Insertion Sequence initiated.");
-				}
-				else
-				{
-					ChatManager.Instance.SendPrivateChatMessage(steamid, "Insertion Sequence aborted." + ( deleteIfAbort ? " Dropship self destructing." : ""));
-					if (deleteIfAbort)
-					{
-						grid.SyncObject.SendCloseRequest();
-						grid.Delete();
-					}
-					
-
-					return;
-				}
-				if (seat.Pilot != null && bootupMsg != "")
-					ChatManager.Instance.SendPrivateChatMessage(steamid, bootupMsg);
+				position = grid.Physics.CenterOfMassWorld;
 			});
-
-			Vector3D position = grid.Physics.CenterOfMassWorld;
+			
 			
 			Vector3D Vector3Intercept = FindInterceptVector(position, startSpeed, target, new Vector3D(0, 0, 0));
 			int slowDist = slowDownDistance + (int)asteroid.asteroid.LocalAABB.HalfExtents.Length();
@@ -576,25 +538,14 @@ namespace SEDropship
 			ChatManager.Instance.SendPrivateChatMessage(steamid, "Estimated travel time: " + ((int)timeToSlow / 60).ToString() + " minutes and " + ((int)timeToSlow % 60).ToString() + " seconds. Enjoy your trip!");
 			if (timeToSlow > 1)
 				Thread.Sleep(1000);
-			if ( Vector3D.Distance(new Vector3D(0,0,0), grid.Physics.LinearVelocity) == 0)
-			{
-				timeToSlow += 1;
-				//second attempt
-				SandboxGameAssemblyWrapper.Instance.GameAction(() =>
-				{
-					var matrix = grid.Physics.GetWorldMatrix();
-					matrix.Forward = Vector3.Normalize(Vector3Intercept);
-					grid.SetWorldMatrix(matrix);
-					grid.Physics.LinearVelocity = (Vector3)Vector3Intercept;
-				});
-			}
+
 			int breakat = (int)timeToSlow*8;
 			int breakcounter = 0;
 			//calculate distance as we travel we can do these checks 4 times a second
 			while (slowDownDistance < Vector3D.Distance(grid.GetPosition(), target) - slowDist)
 			{
 				breakcounter++;
-				if (breakcounter % 80 * 30 == 0)
+				if (breakcounter % 80 == 0)
 				{
 					//if(seat.Pilot != null)
 					ChatManager.Instance.SendPrivateChatMessage(steamid, "Distance remaining: " + (Vector3D.Distance(grid.GetPosition(), target) - slowDist).ToString() + " meters.");
@@ -610,11 +561,10 @@ namespace SEDropship
 				grid.Physics.LinearVelocity = (Vector3)Vector3D.Multiply(Vector3D.Normalize(Vector3Intercept), slowSpeed);
 			});
 			Thread.Sleep(1000);
-			SandboxGameAssemblyWrapper.Instance.GameAction(() =>
-			{
-				if (seat.Pilot != null && arrivalMsg != "")
-					ChatManager.Instance.SendPrivateChatMessage(steamid, arrivalMsg);
-			});
+
+			if (arrivalMsg != "")
+				ChatManager.Instance.SendPrivateChatMessage(steamid, arrivalMsg);
+
 			Thread.Sleep((int)timeToCollision * 2 * 1000);
 			SandboxGameAssemblyWrapper.Instance.GameAction(() =>
 			{
@@ -627,12 +577,10 @@ namespace SEDropship
 		}
 		public void saveXML()
 		{
-
 			XmlSerializer x = new XmlSerializer(typeof(SEDropshipSettings));
 			TextWriter writer = new StreamWriter(Location + "SE-Dropship-Settings.xml");
 			x.Serialize(writer, settings);
 			writer.Close();
-
 		}
 		public void loadXML(bool defaults = false)
 		{
@@ -692,8 +640,8 @@ namespace SEDropship
 
 		public void OnEntityAdd(IMyEntity entity)
 		{
-			Thread T = new Thread(() => OnEntityGridDetected(entity));
-			T.Start();
+			OnEntityGridDetected(entity);
+
 		}
 
 		public void OnChatReceived(ChatManager.ChatEvent chatEvent)
