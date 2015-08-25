@@ -26,7 +26,7 @@ namespace SEDropship
 		public int slowDownDistance
 		{
 			get { return m_slowDownDistance; }
-			set { if (value > 128) m_slowDownDistance = value; else m_slowDownDistance = 128; }//safe minimum
+			set { if (value > 32) m_slowDownDistance = value; else m_slowDownDistance = 32; }//safe minimum
 		}
 
 		public bool anyAsteroid

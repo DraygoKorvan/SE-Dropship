@@ -310,13 +310,13 @@ namespace SEDropship
 						{
 							if (!(entity is IMyVoxelMap))
 								continue;
-							//Console.WriteLine("Found voxelmap");
+							Console.WriteLine("Found voxelmap");
 							IMyVoxelMap tmpasteroid = (IMyVoxelMap)entity;
 
 							if (tmpasteroid.LocalAABB.Size.X > 120F)
 							{
 								m_cache.Add(new SeDropshipAsteroids(tmpasteroid));
-								//Console.WriteLine("Adding to valid asteroid list");
+								Console.WriteLine("Adding to valid asteroid list");
 							}
 								
 
@@ -515,7 +515,7 @@ namespace SEDropship
 			
 			
 			Vector3D Vector3Intercept = FindInterceptVector(position, startSpeed, target, new Vector3D(0, 0, 0));
-			int slowDist = slowDownDistance + (int)asteroid.asteroid.LocalAABB.HalfExtents.Length();
+			int slowDist = slowDownDistance + asteroid.halfextent;
             float distance = Vector3.Distance(position,target) - slowDist;
 			SandboxGameAssemblyWrapper.Instance.GameAction(() =>
 			{

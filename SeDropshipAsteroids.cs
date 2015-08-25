@@ -230,6 +230,7 @@ namespace SEDropship
 		private List<MyVoxelMaterialDefinition> m_Defs = new List<MyVoxelMaterialDefinition>();
 		private Vector3D m_position;
 		private string m_name;
+		private int m_halfextent;
 
 		private static MyVoxelMaterialDefinition m_irondef = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Iron_01");
 		private static MyVoxelMaterialDefinition m_irondef2 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Iron_02");
@@ -262,12 +263,15 @@ namespace SEDropship
 				m_sizex = m_position.X;
 				m_sizey = m_position.Y;
 				m_sizez = m_position.Z;
-			}
+				m_halfextent = (int)m_asteroid.LocalAABB.HalfExtents.Length();
+            }
 			catch (Exception)
 			{
+				Console.WriteLine("Exception thrown when attempting to cache values");
 				m_sizex = 50;
 				m_sizey = 50;
 				m_sizez = 50;
+				m_halfextent = 128;
 				return;
 			}
 
@@ -468,5 +472,12 @@ namespace SEDropship
 			}
 
 		}
+		public int halfextent
+		{
+			get
+			{
+				return m_halfextent;
+			}
+		} 
 	}
 }
