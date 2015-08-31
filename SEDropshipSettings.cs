@@ -10,6 +10,7 @@ namespace SEDropship
 	{
 		private int m_slowDownDistance = 250;
 		private bool m_anyAsteroid = true;
+		private bool m_personalRoid;
 		private float m_slowSpeed = 5.0F;
 		private float m_startSpeed = 104.4F;
 		private int m_countdown = 10;
@@ -22,6 +23,8 @@ namespace SEDropship
 		private string m_bootupMsg = "";
 		private double m_messageMult = 1.0d;
 		private string m_whitelistKeyword = "";
+
+		public static long FieldSize = 50000;
 
 		public int slowDownDistance
 		{
@@ -108,5 +111,17 @@ namespace SEDropship
 			get { return m_whitelistKeyword; }
 			set { m_whitelistKeyword = value; }
 		}
-    }
+
+		public bool personalRoid
+		{
+			get
+			{
+				return m_personalRoid;
+			}
+			set
+			{
+				m_personalRoid = value;
+			}
+		}
+	}
 }

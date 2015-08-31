@@ -6,10 +6,10 @@ using System.Reflection;
 using System.Threading;
 using System.IO;
 using System.Xml.Serialization;
+using System.Runtime.InteropServices;
 
-using Sandbox.Common.ObjectBuilders;
 using Sandbox;
-
+using SteamSDK;
 
 using SEModAPIExtensions.API.Plugin;
 using SEModAPIExtensions.API.Plugin.Events;
@@ -18,6 +18,7 @@ using SEModAPIExtensions.API;
 using SEModAPIInternal.API.Common;
 using SEModAPIInternal.API.Server;
 
+using Sandbox.Game.World;
 using Sandbox.ModAPI;
 
 using VRageMath;
@@ -26,11 +27,6 @@ using VRage.ModAPI;
 
 namespace SEDropship
 {
-	/*struct MaterialPositionData
-	{
-		public Vector3 Sum;
-		public int Count;
-	}*/
 	public class SEDropship : PluginBase, IChatEventHandler
 	{
 		
@@ -43,7 +39,6 @@ namespace SEDropship
 		private AsteroidCollection m_cache = new AsteroidCollection();
 		//bool m_running = true;
 		bool m_loading = true;
-		List<long> m_ignore = new List<long>();
 		private bool m_debugging = false;
 		private int m_debuglevel = 1;
 
@@ -67,15 +62,23 @@ namespace SEDropship
 			//m_running = true;
 			m_loading = true;
 			//build asteroid list
-			m_ignore.Clear();
+	
 			m_main = new Thread(mainloop);
 			m_main.Start();
 			m_main.Priority = ThreadPriority.BelowNormal;//lower priority to make room for other tasks if needed.
 
 			MyAPIGateway.Entities.OnEntityAdd -= OnEntityAdd;
 			MyAPIGateway.Entities.OnEntityAdd += OnEntityAdd;
+			//pAM = new PersonalAsteroidManager();
+
+			//pAM.load();
+
 			Console.WriteLine("SE Dropship Plugin '" + Id.ToString() + "' initialized!");	
 		}
+
+
+
+
 
 		#endregion
 
@@ -140,6 +143,23 @@ namespace SEDropship
 		{
 			get { return settings.requireMagnesium; }
 			set { settings.requireMagnesium = value; }
+		}
+		[Category("Asteroid")]
+		[Description("Personal Roid System - Warning - could have a heavy system resource requirement!")]
+		[Browsable(true)]
+		[ReadOnly(true)]//disabled
+		public bool personalRoidEnabled
+		{
+			get
+			{
+				//return settings.personalRoid;
+				return false;
+			}
+			set
+			{
+				settings.personalRoid = false; //disabled
+				//settings.personalRoid = value;
+			}
 		}
 
 		[Category("SE Dropship")]
@@ -270,6 +290,14 @@ namespace SEDropship
 			get { return m_debuglevel; }
 			set { m_debuglevel = value; }
 		}
+
+		private PersonalAsteroidManager pAM
+		{
+			get;
+			set;
+		}
+
+		
 		#endregion
 		#endregion
 
@@ -284,53 +312,43 @@ namespace SEDropship
 			m_cache.Clear();
 			//List<IMyVoxelMap> asteroids = new List<IMyVoxelMap>();
 
-			do
+
+			Thread.Sleep(1000);
+			try
 			{
-				Thread.Sleep(1000);
-				try
+				if (m_loading == true)
 				{
-					if (m_loading == true)
+					//Console.WriteLine("Attempting to get asteroid list.");
+
+
+					HashSet<IMyEntity> entities = new HashSet<IMyEntity>();
+					MyAPIGateway.Entities.GetEntities(entities);
+					foreach (IMyEntity entity in entities)
 					{
-						Console.WriteLine("Attempting to get asteroid list.");
+						if (!(entity is IMyVoxelMap))
+							continue;
+						//Console.WriteLine("Found voxelmap");
+						IMyVoxelMap tmpasteroid = (IMyVoxelMap)entity;
 
-
-						HashSet<IMyEntity> entities = new HashSet<IMyEntity>();
-						try
+						if (tmpasteroid.LocalAABB.Size.X > 120F)
 						{
-
-							MyAPIGateway.Entities.GetEntities(entities);
+							m_cache.Add(new SeDropshipAsteroids(tmpasteroid));
+							Console.WriteLine("Adding to valid asteroid list");
 						}
-						catch
+						else
 						{
-							Console.WriteLine("Server busy, asteroid list unavailible, skipping");
-							//asteroids.Clear();
-							m_loading = true;
+							Console.WriteLine("Asteroid too small, skipping.");
 						}
-						foreach (IMyEntity entity in entities)
-						{
-							if (!(entity is IMyVoxelMap))
-								continue;
-							Console.WriteLine("Found voxelmap");
-							IMyVoxelMap tmpasteroid = (IMyVoxelMap)entity;
-
-							if (tmpasteroid.LocalAABB.Size.X > 120F)
-							{
-								m_cache.Add(new SeDropshipAsteroids(tmpasteroid));
-								Console.WriteLine("Adding to valid asteroid list");
-							}
 								
 
-						}
 					}
 				}
-				catch 
-				{
-					Log.Info("Dropship - null reference trying again in 1 second.");
-				}
-
-
 			}
-			while (m_cache.Count == 0);
+			catch 
+			{
+				Log.Info("Dropship - null reference trying again in 1 second.");
+			}
+
 			refresh();
 		}
 
@@ -344,13 +362,16 @@ namespace SEDropship
 				foreach (SeDropshipAsteroids obj in m_cache)
 				{
 					//Thread.Sleep(1000);
-					Console.WriteLine("Inventory started on asteroid");
-					//var obj = new SeDropshipAsteroids(voxelmap);
 					bool vitalmats = false;
 					bool has_mag = false;
 					string name = obj.Name;
+					if (obj.Name.Contains("p-Roid-"))
+						continue;
+
+					Console.WriteLine("Inventory started on asteroid");
 					try
 					{
+						
 						obj.Refresh();//refresh
 					}
 					catch
@@ -443,9 +464,6 @@ namespace SEDropship
 		}
 		public void doDrop(IMyCubeGrid grid)
 		{
-
-			//if(isdebugging)
-				//Console.WriteLine("DoDrop called.");
 			long Owner = 0;
 			Thread.Sleep(1000);
 			SandboxGameAssemblyWrapper.Instance.GameAction(() =>
@@ -453,42 +471,53 @@ namespace SEDropship
 				if(grid.BigOwners.Count > 0)
 					Owner = grid.BigOwners.First();
 			});
-			while (Loading) Thread.Sleep(1000);
-			//find target
-
-			SeDropshipAsteroids asteroid = m_asteroids.First();
-			if(anyAsteroid)
-			{
-				asteroid = m_asteroids.ElementAt(m_gen.Next(m_asteroids.Count));
-			}
-			SandboxGameAssemblyWrapper.Instance.GameAction(() =>
-			{
-				grid.Physics.Activate();//fixes a bug...
-			});
-			//store target position.
-			Vector3D target = asteroid.center;
-
 			List<ulong> steamlist = ServerNetworkManager.Instance.GetConnectedPlayers();
 			ulong steamid = 0;
-			foreach( ulong steam_id in steamlist)
+			foreach (ulong steam_id in steamlist)
 			{
-				List<long> playerids =  PlayerMap.Instance.GetPlayerIdsFromSteamId(steam_id);
+				List<long> playerids = PlayerMap.Instance.GetPlayerIdsFromSteamId(steam_id);
 				foreach (long playerid in playerids)
 				{
-					//Console.WriteLine("Connected playerid:" + playerid.ToString());
-					if(playerid == Owner)
+					if (playerid == Owner)
 					{
 						steamid = steam_id;
-						//Console.WriteLine("Found match" + steamid.ToString());
 					}
 				}
 			}
-			if (m_asteroids.Count == 0)
+			
+			while (Loading && !personalRoidEnabled) Thread.Sleep(1000);
+			//find target
+			//SeDropshipAsteroids asteroid;
+			Vector3D target = Vector3D.Zero;
+			int halfextent = 0;
+			if (personalRoidEnabled)
 			{
-				Log.Info("No asteroids, aborting drop");
-				ChatManager.Instance.SendPrivateChatMessage(steamid, "Error: No valid asteroids exist within range, aborting drop.");
-                return;
+				target = pAM.targetpos(steamid);
+				halfextent = pAM.halfextent(steamid);
 			}
+			else
+			{
+				if( m_asteroids.Count  > 0)
+                {
+					var asteroid = m_asteroids.First();
+					if (anyAsteroid)
+					{
+						asteroid = m_asteroids.ElementAt(m_gen.Next(m_asteroids.Count));
+					}
+					target = asteroid.center;
+					halfextent = asteroid.halfextent;
+				}
+				else
+				{
+
+					Log.Info("No asteroids, aborting drop");
+					ChatManager.Instance.SendPrivateChatMessage(steamid, "Error: No valid asteroids exist within range sending to 0,0,0.");
+					
+
+				}
+
+			}
+
 			ChatManager.Instance.SendPrivateChatMessage(steamid, "Dropship booting up, please stay in your seat for insertion.");
 			Thread.Sleep((int)(2000 * message_mult));
 			ChatManager.Instance.SendPrivateChatMessage(steamid, "If you exited your ship please return to the passenger seat before the countdown finishes.");
@@ -508,30 +537,56 @@ namespace SEDropship
 			if (bootupMsg != "")
 			ChatManager.Instance.SendPrivateChatMessage(steamid, bootupMsg);
 			Vector3D position = Vector3D.Zero;
-            SandboxGameAssemblyWrapper.Instance.GameAction(() =>
-			{
-				position = grid.Physics.CenterOfMassWorld;
-			});
-			
-			
+			Console.WriteLine("getting center of mass");
+			position = grid.GetPosition();
+
+			Console.WriteLine("calculating intercept");
 			Vector3D Vector3Intercept = FindInterceptVector(position, startSpeed, target, new Vector3D(0, 0, 0));
-			int slowDist = slowDownDistance + asteroid.halfextent;
+			int slowDist = slowDownDistance + halfextent;
             float distance = Vector3.Distance(position,target) - slowDist;
+			//Console.WriteLine("moving ship!");
 			SandboxGameAssemblyWrapper.Instance.GameAction(() =>
 			{
+				//Console.WriteLine("In engine");
 				if (distance > teleportDistance)
 				{
+					//Console.WriteLine("teleporting");
 					position = Vector3.Add(target, Vector3.Multiply(Vector3.Negate(Vector3.Normalize(Vector3Intercept)), teleportDistance));
-					grid.SetPosition(position);
-					distance = Vector3.Distance(position, target) - slowDist;
+					//Console.WriteLine("set grid pos");
+					try
+					{
+						grid.SetPosition(position);
+					}
+					catch (Exception ex)
+					{
+						Console.WriteLine(ex.ToString());
+						Console.WriteLine(ex.StackTrace.ToString());
+
+					}
 				}
-				//grid.Physics.
-				var matrix = grid.Physics.GetWorldMatrix();
-				matrix.Forward = Vector3.Normalize(Vector3Intercept);
-				grid.SetWorldMatrix(matrix);
-				grid.Physics.LinearVelocity = (Vector3)Vector3Intercept;
 			});
-			//LogManager.APILog.WriteLineAndConsole("Total Distance to target: " + distance.ToString());
+
+
+			Thread.Sleep(1000);
+				
+			SandboxGameAssemblyWrapper.Instance.GameAction(() =>
+			{
+				try
+				{
+					position = grid.GetPosition();
+					distance = Vector3.Distance(position, target) - slowDist;
+					var matrix = grid.Physics.GetWorldMatrix();
+					matrix.Forward = Vector3D.Normalize(Vector3Intercept);
+					grid.SetWorldMatrix(matrix);
+					grid.Physics.LinearVelocity = (Vector3)Vector3Intercept;
+				}
+				catch (Exception ex)
+				{
+					Console.WriteLine(ex.ToString());
+				}
+
+			});
+			Console.WriteLine("out engine");
 			float timeToSlow =  distance / startSpeed;
 			float timeToCollision = Vector3.Distance(Vector3.Subtract(target, Vector3.Multiply(Vector3.Normalize(Vector3Intercept), slowDist)), target) / slowSpeed;
 
@@ -558,7 +613,15 @@ namespace SEDropship
 			ChatManager.Instance.SendPrivateChatMessage(steamid, "Welcome to your destination, pod will attempt to land. If navigation calculations were off it will automatically stop the pod in " + ((int)timeToCollision*2).ToString() + " seconds. Have a nice day!");
 			SandboxGameAssemblyWrapper.Instance.GameAction(() =>
 			{
-				grid.Physics.LinearVelocity = (Vector3)Vector3D.Multiply(Vector3D.Normalize(Vector3Intercept), slowSpeed);
+				try
+				{
+					grid.Physics.LinearVelocity = (Vector3)Vector3D.Multiply(Vector3D.Normalize(Vector3Intercept), slowSpeed);
+				}
+				catch (Exception ex)
+				{
+					Console.WriteLine(ex.ToString());
+				}
+				
 			});
 			Thread.Sleep(1000);
 
@@ -568,12 +631,16 @@ namespace SEDropship
 			Thread.Sleep((int)timeToCollision * 2 * 1000);
 			SandboxGameAssemblyWrapper.Instance.GameAction(() =>
 			{
-				grid.Physics.LinearVelocity = new Vector3(0, 0, 0);
-				grid.Physics.AngularVelocity = new Vector3(0, 0, 0);
-				//grid.SyncObject.UpdatesOnlyOnServer = updatesonserver;
+				try
+				{
+					grid.Physics.LinearVelocity = new Vector3(0, 0, 0);
+					grid.Physics.AngularVelocity = new Vector3(0, 0, 0);
+				}
+				catch (Exception ex)
+				{
+					Console.Write(ex.ToString());
+				}
 			});
-
-
 		}
 		public void saveXML()
 		{
@@ -619,7 +686,7 @@ namespace SEDropship
 				try { Log.Warn("Could not load configuration: " + ex.ToString()); }
 				catch { Console.WriteLine("Could not load and write to log: " + ex.ToString()); }
 			}
-
+			
 		}
 
 		#endregion
@@ -633,6 +700,8 @@ namespace SEDropship
 		public override void Shutdown()
 		{
 			//m_running = false;
+
+			MyAPIGateway.Entities.OnEntityAdd -= OnEntityAdd;
 			saveXML();
 			return;
 		}
@@ -641,7 +710,11 @@ namespace SEDropship
 		public void OnEntityAdd(IMyEntity entity)
 		{
 			OnEntityGridDetected(entity);
-
+			/*if (entity is IMyVoxelMap)
+			{
+				IMyVoxelMap tmpasteroid = (IMyVoxelMap)entity;
+				Console.WriteLine(string.Format("N:{0} R:{1} E:{2}", tmpasteroid.StorageName.ToString(), Math.Floor(tmpasteroid.LocalVolume.Radius / 2), tmpasteroid.LocalAABB.HalfExtents.AbsMax().ToString()));
+			}*/
 		}
 
 		public void OnChatReceived(ChatManager.ChatEvent chatEvent)
@@ -656,7 +729,15 @@ namespace SEDropship
 			return;
 		}
 
+		private void OnClientLeft(ulong arg1, ChatMemberStateChangeEnum arg2)
+		{
 
+		}
+
+		private void OnClientJoined(ulong obj)
+		{
+			pAM.loadClient(obj);
+        }
 
 		#endregion
 
@@ -675,6 +756,12 @@ namespace SEDropship
 				commandLoadDefaults(_event);
 			if (words[0] == "/ds-refresh" && isadmin)
 				commandRefresh(_event);
+			if (words[0] == "/ds-test")
+			{
+				Console.WriteLine("beginning test");
+				commandTest(_event);
+				
+            }
 		}
 
 		
@@ -728,7 +815,91 @@ namespace SEDropship
 				//donothing
 			}
 		}
+		public void commandTest(ChatManager.ChatEvent _event)
+		{
+			//Thread T = new Thread(Experiment);
+			//T.Start();
+		}
+
+		private void Experiment()
+		{
+			int i = 0;
+			var pos = new Vector3D(10000, 10000, 10000);
+			SandboxGameAssemblyWrapper.Instance.GameAction(() =>
+			{
+				MyWorldGenerator.AddAsteroidPrefab("AsteroidBase2", pos + new Vector3D(0,0, i++ * 10000), string.Format("p-Roid-{0}", i++));
+				MyWorldGenerator.AddAsteroidPrefab("AsteroidSpaceStation", pos + new Vector3D(0, 0, i++ * 10000), string.Format("p-Roid-{0}", i++));
+				MyWorldGenerator.AddAsteroidPrefab("Barths_moon_base", pos + new Vector3D(0, 0, i++ * 10000), string.Format("p-Roid-{0}", i++));
+				MyWorldGenerator.AddAsteroidPrefab("barths_moon_camp", pos + new Vector3D(0, 0, i++ * 10000), string.Format("p-Roid-{0}", i++));
+				MyWorldGenerator.AddAsteroidPrefab("Bioresearch", pos + new Vector3D(0, 0, i++ * 10000), string.Format("p-Roid-{0}", i++));
+				MyWorldGenerator.AddAsteroidPrefab("Chinese_Corridor_Tunnel_256x256x256", pos + new Vector3D(0, 0, i++ * 10000), string.Format("p-Roid-{0}", i++));
+				MyWorldGenerator.AddAsteroidPrefab("EacPrisonAsteroid", pos + new Vector3D(0, 0, i++ * 10000), string.Format("p-Roid-{0}", i++));
+				MyWorldGenerator.AddAsteroidPrefab("EngineersOutpost", pos + new Vector3D(0, 0, i++ * 10000), string.Format("p-Roid-{0}", i++));
+				MyWorldGenerator.AddAsteroidPrefab("hopebase512", pos + new Vector3D(0, 0, i++ * 10000), string.Format("p-Roid-{0}", i++));
+				MyWorldGenerator.AddAsteroidPrefab("Junkyard_RaceAsteroid_256x256x256", pos + new Vector3D(0, 0, i++ * 10000), string.Format("p-Roid-{0}", i++));
+				MyWorldGenerator.AddAsteroidPrefab("JunkYardToxic_128x128x128", pos + new Vector3D(0, 0, i++ * 10000), string.Format("p-Roid-{0}", i++));
+				MyWorldGenerator.AddAsteroidPrefab("PirateBaseStaticAsteroid_A_5000m_1", pos + new Vector3D(0, 0, i++ * 10000), string.Format("p-Roid-{0}", i++));
+				MyWorldGenerator.AddAsteroidPrefab("PirateBaseStaticAsteroid_A_5000m_2", pos + new Vector3D(0, 0, i++ * 10000), string.Format("p-Roid-{0}", i++));
+				MyWorldGenerator.AddAsteroidPrefab("Russian_Transmitter_2", pos + new Vector3D(0, 0, i++ * 10000), string.Format("p-Roid-{0}", i++));
+				MyWorldGenerator.AddAsteroidPrefab("ScratchedBoulder_128x128x128", pos + new Vector3D(0, 0, i++ * 10000), string.Format("p-Roid-{0}", i++));
+				MyWorldGenerator.AddAsteroidPrefab("small_overhang_flat", pos + new Vector3D(0, 0, i++ * 10000), string.Format("p-Roid-{0}", i++));
+				MyWorldGenerator.AddAsteroidPrefab("Small_Pirate_Base_Asteroid", pos + new Vector3D(0, 0, i++ * 10000), string.Format("p-Roid-{0}", i++));
+				MyWorldGenerator.AddAsteroidPrefab("TorusWithManyTunnels_256x128x256", pos + new Vector3D(0, 0, i++ * 10000), string.Format("p-Roid-{0}", i++));
+				MyWorldGenerator.AddAsteroidPrefab("TorusWithSmallTunnel_256x128x256", pos + new Vector3D(0, 0, i++ * 10000), string.Format("p-Roid-{0}", i++));
+				MyWorldGenerator.AddAsteroidPrefab("VangelisBase", pos + new Vector3D(0, 0, i++ * 10000), string.Format("p-Roid-{0}", i++));
+				MyWorldGenerator.AddAsteroidPrefab("VerticalIslandStorySector_128x256x128", pos + new Vector3D(0, 0, i++ * 10000), string.Format("p-Roid-{0}", i++));
+			});
+			/*
+N:p-Roid-1 R:443 E:256
+N:p-Roid-3 R:221 E:128
+N:p-Roid-5 R:221 E:128
+N:p-Roid-7 R:221 E:128
+N:p-Roid-9 R:221 E:128
+N:p-Roid-11 R:221 E:128
+N:p-Roid-13 R:443 E:256
+N:p-Roid-15 R:221 E:128
+N:p-Roid-17 R:443 E:256
+N:p-Roid-19 R:221 E:128
+N:p-Roid-21 R:110 E:64
+N:p-Roid-23 R:443 E:256
+N:p-Roid-25 R:443 E:256
+N:p-Roid-27 R:221 E:128
+N:p-Roid-29 R:110 E:64
+N:p-Roid-31 R:110 E:64
+N:p-Roid-33 R:110 E:64
+N:p-Roid-35 R:221 E:128
+N:p-Roid-37 R:221 E:128
+N:p-Roid-39 R:221 E:128
+N:p-Roid-41 R:221 E:128
+	*/
+
+		}
 		#endregion
 		#endregion
+
+		new public Guid Id
+		{
+			get
+			{
+				GuidAttribute guidAttr = (GuidAttribute)typeof(SEDropship).Assembly.GetCustomAttributes(typeof(GuidAttribute), true)[0];
+				return new Guid(guidAttr.Value);
+			}
+		}
+
+		new public string Name
+		{
+			get
+			{
+				return "SE-Dropship";
+			}
+		}
+
+		new public Version Version
+		{
+			get
+			{
+				return typeof( SEDropship ).Assembly.GetName().Version;
+			}
+		}
 	}
 }

@@ -232,18 +232,18 @@ namespace SEDropship
 		private string m_name;
 		private int m_halfextent;
 
-		private static MyVoxelMaterialDefinition m_irondef = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Iron_01");
-		private static MyVoxelMaterialDefinition m_irondef2 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Iron_02");
-		private static MyVoxelMaterialDefinition m_nickeldef1 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Nickel_01");
-		private static MyVoxelMaterialDefinition m_cobaltdef1 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Cobalt_01");
-		private static MyVoxelMaterialDefinition m_magnesiumdef1 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Magnesium_01");
-		private static MyVoxelMaterialDefinition m_silicondef1 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Silicon_01");
-		private static MyVoxelMaterialDefinition m_silverdef1 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Silver_01");
-		private static MyVoxelMaterialDefinition m_golddef1 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Gold_01");
-		private static MyVoxelMaterialDefinition m_platinumdef1 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Platinum_01");
-		private static MyVoxelMaterialDefinition m_uraniumdef1 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Uraninite_01");
-		private static MyVoxelMaterialDefinition m_icedef1 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Ice_01");
-		private static MyVoxelMaterialDefinition m_icedef2 = Sandbox.Definitions.MyDefinitionManager.Static.GetVoxelMaterialDefinition("Ice_02");
+		private static MyVoxelMaterialDefinition m_irondef = MyDefinitionManager.Static.GetVoxelMaterialDefinition("Iron_01");
+		private static MyVoxelMaterialDefinition m_irondef2 = MyDefinitionManager.Static.GetVoxelMaterialDefinition("Iron_02");
+		private static MyVoxelMaterialDefinition m_nickeldef1 = MyDefinitionManager.Static.GetVoxelMaterialDefinition("Nickel_01");
+		private static MyVoxelMaterialDefinition m_cobaltdef1 = MyDefinitionManager.Static.GetVoxelMaterialDefinition("Cobalt_01");
+		private static MyVoxelMaterialDefinition m_magnesiumdef1 = MyDefinitionManager.Static.GetVoxelMaterialDefinition("Magnesium_01");
+		private static MyVoxelMaterialDefinition m_silicondef1 = MyDefinitionManager.Static.GetVoxelMaterialDefinition("Silicon_01");
+		private static MyVoxelMaterialDefinition m_silverdef1 = MyDefinitionManager.Static.GetVoxelMaterialDefinition("Silver_01");
+		private static MyVoxelMaterialDefinition m_golddef1 = MyDefinitionManager.Static.GetVoxelMaterialDefinition("Gold_01");
+		private static MyVoxelMaterialDefinition m_platinumdef1 = MyDefinitionManager.Static.GetVoxelMaterialDefinition("Platinum_01");
+		private static MyVoxelMaterialDefinition m_uraniumdef1 = MyDefinitionManager.Static.GetVoxelMaterialDefinition("Uraninite_01");
+		private static MyVoxelMaterialDefinition m_icedef1 = MyDefinitionManager.Static.GetVoxelMaterialDefinition("Ice_01");
+		private static MyVoxelMaterialDefinition m_icedef2 = MyDefinitionManager.Static.GetVoxelMaterialDefinition("Ice_02");
 
 
 
@@ -253,6 +253,10 @@ namespace SEDropship
 			m_asteroid = asteroid;
 			m_name = m_asteroid.StorageName.ToString();
             calculateSize();
+		}
+
+		public SeDropshipAsteroids()
+		{
 		}
 
 		private void calculateSize()
