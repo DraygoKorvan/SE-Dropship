@@ -69,9 +69,9 @@ namespace SEDropship
 
 			MyAPIGateway.Entities.OnEntityAdd -= OnEntityAdd;
 			MyAPIGateway.Entities.OnEntityAdd += OnEntityAdd;
-			//pAM = new PersonalAsteroidManager();
+			pAM = new PersonalAsteroidManager();
 
-			//pAM.load();
+			pAM.load();
 
 			Console.WriteLine("SE Dropship Plugin '" + Id.ToString() + "' initialized!");	
 		}
@@ -147,18 +147,18 @@ namespace SEDropship
 		[Category("Asteroid")]
 		[Description("Personal Roid System - Warning - could have a heavy system resource requirement!")]
 		[Browsable(true)]
-		[ReadOnly(true)]//disabled
+		[ReadOnly(false)]//disabled
 		public bool personalRoidEnabled
 		{
 			get
 			{
-				//return settings.personalRoid;
-				return false;
+				return settings.personalRoid;
+				//return false;
 			}
 			set
 			{
-				settings.personalRoid = false; //disabled
-				//settings.personalRoid = value;
+				//settings.personalRoid = false; //disabled
+				settings.personalRoid = value;
 			}
 		}
 
@@ -358,10 +358,8 @@ namespace SEDropship
 			m_asteroids.Clear();
 			try
 			{
-				//var Cache = new MyStorageDataCache();
 				foreach (SeDropshipAsteroids obj in m_cache)
 				{
-					//Thread.Sleep(1000);
 					bool vitalmats = false;
 					bool has_mag = false;
 					string name = obj.Name;

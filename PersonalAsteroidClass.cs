@@ -6,7 +6,7 @@ using System.IO;
 
 using VRageMath;
 using Sandbox;
-using Sandbox.ModAPI;
+using SEModAPIInternal.API.Common;
 
 namespace SEDropship
 {
@@ -50,8 +50,11 @@ namespace SEDropship
 					pos = obj.pos;
 					m_savedata = obj.m_savedata;
 					reader.Close();
-					sync();
-
+					m_cache.Clear();
+					foreach (var wrapper in m_savedata)
+					{
+						m_cache.Add(wrapper.id, wrapper.roid);
+					}
 					return;
 				}
 
@@ -63,13 +66,7 @@ namespace SEDropship
 			}
 		}
 
-		private void sync()
-		{
-			foreach( var wrapper in m_savedata)
-			{
-				m_cache.Add(wrapper.id, wrapper.roid);
-			}
-		}
+
 
 		internal void loadClient(ulong obj)
 		{
@@ -85,7 +82,7 @@ namespace SEDropship
 			x.Serialize(writer, this);
 			writer.Close();
 			Console.WriteLine("Saving");
-			MyAPIGateway.Session.Save();
+			WorldManager.Instance.AsynchronousSaveWorld();
 		}
 
 
@@ -163,7 +160,7 @@ namespace SEDropship
 			if (!m_cache.ContainsKey(steamid))
 			{
 				createEntry(steamid);
-				save();
+				//save();
 			}
 			return m_cache[steamid].halfextent;
 		}
