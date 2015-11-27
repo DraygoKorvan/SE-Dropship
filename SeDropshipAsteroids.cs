@@ -226,7 +226,7 @@ namespace SEDropship
 		private double m_sizey = 50;
 		private double m_sizez = 50;
 		private Dictionary<MyVoxelMaterialDefinition, float> m_materialTotals = new Dictionary<MyVoxelMaterialDefinition, float>();
-		private MyStorageDataCache m_cache;
+		private MyStorageData m_cache;
 		private List<MyVoxelMaterialDefinition> m_Defs = new List<MyVoxelMaterialDefinition>();
 		private Vector3D m_position;
 		private string m_name;
@@ -282,13 +282,12 @@ namespace SEDropship
 		}
 		public void Refresh()
 		{
-			m_cache = new MyStorageDataCache();
+			m_cache = new MyStorageData();
 			Vector3I size = m_asteroid.Storage.Size;
 			m_cache.Resize(size);
 			m_asteroid.Storage.ReadRange(m_cache, MyStorageDataTypeFlags.Material, 0, Vector3I.Zero, size - 1);
 			//voxelMap.Storage.ReadRange(m_cache, MyStorageDataTypeFlags.Material, Vector3I.Zero, size - 1);
 			//			});
-
 			foreach (byte materialIndex in m_cache.Data)
 			{
 				try

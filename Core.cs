@@ -127,7 +127,7 @@ namespace SEDropship
 			set { settings.whitelistKeyword = value; }
 		}
 		[Category("Asteroid")]
-		[Description("Requires target asteroid to have Stone, Iron, Nickel, Cobalt, Silver, Gold, Uranium, Platinum, and Silicon.")]
+		[Description("Requires target asteroid to have Iron, Nickel, Cobalt, Silver, Gold, Platinum, and Silicon.")]
 		[Browsable(true)]
 		[ReadOnly(false)]
 		public bool requireAllVitalMats
@@ -143,6 +143,33 @@ namespace SEDropship
 		{
 			get { return settings.requireMagnesium; }
 			set { settings.requireMagnesium = value; }
+		}
+		[Category("Asteroid")]
+		[Description("Requires target asteroid to have Uranium.")]
+		[Browsable(true)]
+		[ReadOnly(false)]
+		public bool requireUranium
+		{
+			get { return settings.requireUranium; }
+			set { settings.requireUranium = value; }
+		}
+		[Category("Asteroid")]
+		[Description("Requires target asteroid to have Ice.")]
+		[Browsable(true)]
+		[ReadOnly(false)]
+		public bool requireIce
+		{
+			get { return settings.requireIce; }
+			set { settings.requireIce = value; }
+		}
+		[Category("Asteroid")]
+		[Description("Requires target asteroid to have Silver.")]
+		[Browsable(true)]
+		[ReadOnly(false)]
+		public bool requireSilver
+		{
+			get { return settings.requireSilver; }
+			set { settings.requireSilver = value; }
 		}
 		[Category("Asteroid")]
 		[Description("Personal Roid System - Warning - could have a heavy system resource requirement!")]
@@ -362,6 +389,9 @@ namespace SEDropship
 				{
 					bool vitalmats = false;
 					bool has_mag = false;
+					bool has_ura = false;
+					bool has_ice = false;
+					bool has_silver = false;
 					string name = obj.Name;
 					if (obj.Name.Contains("p-Roid-"))
 						continue;
@@ -377,11 +407,17 @@ namespace SEDropship
 						Console.WriteLine("Failure in inventory attempt..");
 						continue;
 					}
-					if (obj.has_cobalt && obj.has_gold && obj.has_ice && obj.has_iron && obj.has_nickel && obj.has_silicon && obj.has_silver && obj.has_uranium)
+					//uranium is not required
+					if (obj.has_cobalt && obj.has_gold && obj.has_iron && obj.has_nickel && obj.has_silicon && obj.has_platinum)
 						vitalmats = true;
 					if (obj.has_magnesium)
 						has_mag = true;
-
+					if (obj.has_uranium)
+						has_ura = true;
+					if (obj.has_ice)
+						has_ice = true;
+					if (obj.has_silver)
+						has_silver = true;
 					bool add = true;
 					if (obj.Name.Contains("moon") && !anyAsteroid)
 						add = false;
@@ -396,12 +432,18 @@ namespace SEDropship
 						add = false;
 					if (requireMagnesium && !has_mag)
 						add = false;
+					if (requireUranium && !has_ura)
+						add = false;
+					if (requireIce && !has_ice)
+						add = false;
+					if (requireSilver && !has_silver)
+						add = false;
 					if (whitelistKeyword != "")
 					{
 						if (obj.Name.Contains(whitelistKeyword))
 							add = true;
 					}
-					Console.WriteLine(String.Format("vitalmats: {0}, Magnesium: {1} Add: {2}", vitalmats.ToString(), has_mag.ToString(), add.ToString()));
+					Console.WriteLine(String.Format("vitalmats: {0}, Magnesium: {1}, Uranium: {3}, Add: {2}", vitalmats.ToString(), has_mag.ToString(), add.ToString(), has_ura.ToString()));
 					if (add)
 					{
 						m_asteroids.Add(obj);
@@ -754,12 +796,12 @@ namespace SEDropship
 				commandLoadDefaults(_event);
 			if (words[0] == "/ds-refresh" && isadmin)
 				commandRefresh(_event);
-			if (words[0] == "/ds-test")
+			/*if (words[0] == "/ds-test")
 			{
 				Console.WriteLine("beginning test");
 				commandTest(_event);
 				
-            }
+            }*/
 		}
 
 		
@@ -819,7 +861,7 @@ namespace SEDropship
 			//T.Start();
 		}
 
-		private void Experiment()
+		/*private void Experiment()
 		{
 			int i = 0;
 			var pos = new Vector3D(10000, 10000, 10000);
@@ -846,7 +888,7 @@ namespace SEDropship
 				MyWorldGenerator.AddAsteroidPrefab("TorusWithSmallTunnel_256x128x256", pos + new Vector3D(0, 0, i++ * 10000), string.Format("p-Roid-{0}", i++));
 				MyWorldGenerator.AddAsteroidPrefab("VangelisBase", pos + new Vector3D(0, 0, i++ * 10000), string.Format("p-Roid-{0}", i++));
 				MyWorldGenerator.AddAsteroidPrefab("VerticalIslandStorySector_128x256x128", pos + new Vector3D(0, 0, i++ * 10000), string.Format("p-Roid-{0}", i++));
-			});
+			});*/
 			/*
 N:p-Roid-1 R:443 E:256
 N:p-Roid-3 R:221 E:128

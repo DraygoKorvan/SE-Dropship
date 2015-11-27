@@ -18,7 +18,7 @@ namespace SEDropship
 		//private List<ulong> m_clients = new List<ulong>();
 		[NonSerialized]
 		private long m_pos = 2;
-
+		private static object m_buildlock = new object();
 		internal PersonalAsteroidManager() { }
 		public List<PersonalWrapper> m_savedata
 		{
@@ -136,9 +136,13 @@ namespace SEDropship
 
 		internal Vector3D targetpos(ulong steamid)
 		{
-			if (!m_cache.ContainsKey(steamid))
+			if (steamid == 0) return default(Vector3D);
+			lock (m_buildlock)
 			{
-				createEntry(steamid);
+				if (!m_cache.ContainsKey(steamid))
+				{
+					createEntry(steamid);
+				}
 			}
 			return m_cache[steamid].center;
 		}
