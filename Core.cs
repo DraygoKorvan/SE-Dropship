@@ -888,8 +888,8 @@ namespace SEDropship
 				MyWorldGenerator.AddAsteroidPrefab("TorusWithSmallTunnel_256x128x256", pos + new Vector3D(0, 0, i++ * 10000), string.Format("p-Roid-{0}", i++));
 				MyWorldGenerator.AddAsteroidPrefab("VangelisBase", pos + new Vector3D(0, 0, i++ * 10000), string.Format("p-Roid-{0}", i++));
 				MyWorldGenerator.AddAsteroidPrefab("VerticalIslandStorySector_128x256x128", pos + new Vector3D(0, 0, i++ * 10000), string.Format("p-Roid-{0}", i++));
-			});*/
-			/*
+			});
+			
 N:p-Roid-1 R:443 E:256
 N:p-Roid-3 R:221 E:128
 N:p-Roid-5 R:221 E:128
@@ -911,9 +911,9 @@ N:p-Roid-35 R:221 E:128
 N:p-Roid-37 R:221 E:128
 N:p-Roid-39 R:221 E:128
 N:p-Roid-41 R:221 E:128
-	*/
+	
 
-		}
+		}*/
 		#endregion
 		#endregion
 
